@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super Picks Trading — Live TA Signals</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0e17;
+      --bg-card: #111827;
+      --bg-card-hover: #1a2235;
+      --bg-header: #0d1220;
+      --border: #1e293b;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --green: #00e396;
+      --green-bg: rgba(0,227,150,0.12);
+      --red: #ff4560;
+      --red-bg: rgba(255,69,96,0.12);
+      --blue: #7ba7ff;
+      --blue-bg: rgba(123,167,255,0.12);
+      --orange: #feb019;
+      --orange-bg: rgba(254,176,25,0.12);
+      --purple: #b57bff;
+      --accent: #00e396;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-inner {
+      max-width: 1400px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 1.25rem; color: var(--accent);
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--green), #00b87a);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: #fff; font-weight: 800;
+    }
+    .header-right { display: flex; align-items: center; gap: 1.5rem; }
+    .market-badge {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+    }
+    .market-open { background: var(--green-bg); color: var(--green); }
+    .market-closed { background: var(--red-bg); color: var(--red); }
+    .market-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .market-open .market-dot { background: var(--green); animation: pulse 2s infinite; }
+    .market-closed .market-dot { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .last-update { font-size: 0.78rem; color: var(--text-dim); }
+
+    /* ── Nav Tabs ── */
+    .nav-tabs {
+      display: flex; gap: 0; background: var(--bg-header);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+    }
+    .nav-tab {
+      padding: 12px 24px; font-size: 0.88rem; font-weight: 600;
+      color: var(--text-muted); cursor: pointer; border: none; background: none;
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .nav-tab:hover { color: var(--text); }
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Main Layout ── */
+    .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+    /* ── Stats Row ── */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.25rem;
+    }
+    .stat-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .stat-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Picks Table ── */
+    .section-title {
+      font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .picks-table-wrap {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .picks-table {
+      width: 100%; border-collapse: collapse;
+    }
+    .picks-table th {
+      text-align: left; padding: 12px 16px; font-size: 0.72rem;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em;
+      background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border);
+      font-weight: 600; white-space: nowrap;
+    }
+    .picks-table td {
+      padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 0.88rem; vertical-align: middle;
+    }
+    .picks-table tr:last-child td { border-bottom: none; }
+    .picks-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .symbol-cell { display: flex; flex-direction: column; }
+    .symbol-ticker { font-weight: 700; font-size: 0.95rem; color: #fff; }
+    .symbol-name { font-size: 0.72rem; color: var(--text-dim); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .signal-badge {
+      display: inline-block; padding: 4px 10px; border-radius: 6px;
+      font-size: 0.75rem; font-weight: 700; white-space: nowrap;
+    }
+    .signal-strong-buy { background: var(--green-bg); color: var(--green); }
+    .signal-buy { background: rgba(76,175,80,0.15); color: #4CAF50; }
+    .signal-neutral { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+    .signal-sell { background: var(--red-bg); color: var(--red); }
+    .signal-strong-sell { background: rgba(211,47,47,0.15); color: #D32F2F; }
+
+    .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .score-bar {
+      width: 60px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+    .score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    .score-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.85rem; min-width: 36px; }
+
+    .price-cell { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+    .change-positive { color: var(--green); }
+    .change-negative { color: var(--red); }
+
+    .indicator-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+    .indicator-pill {
+      font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;
+      font-weight: 600; white-space: nowrap;
+    }
+    .pill-bullish { background: var(--green-bg); color: var(--green); }
+    .pill-bearish { background: var(--red-bg); color: var(--red); }
+    .pill-neutral { background: rgba(148,163,184,0.1); color: var(--text-dim); }
+
+    /* ── History Tab ── */
+    .history-stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+
+    .trade-row-win td { border-left: 3px solid var(--green); }
+    .trade-row-loss td { border-left: 3px solid var(--red); }
+
+    /* ── API Tab ── */
+    .api-section { max-width: 900px; }
+    .api-endpoint {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;
+    }
+    .api-method {
+      display: inline-block; padding: 3px 8px; border-radius: 4px;
+      font-size: 0.72rem; font-weight: 700; margin-right: 8px;
+    }
+    .method-get { background: var(--green-bg); color: var(--green); }
+    .method-post { background: var(--blue-bg); color: var(--blue); }
+    .api-path { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 600; }
+    .api-desc { color: var(--text-muted); font-size: 0.85rem; margin-top: 8px; }
+    .code-block {
+      background: #0d1117; border: 1px solid var(--border); border-radius: 8px;
+      padding: 1rem; margin-top: 12px; overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;
+      color: #e6edf3; line-height: 1.6;
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center; padding: 4rem 2rem; color: var(--text-muted);
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+    .empty-title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 3rem; color: var(--text-dim); }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .header { padding: 0 1rem; }
+      .container { padding: 1rem; }
+      .nav-tabs { padding: 0 1rem; overflow-x: auto; }
+      .nav-tab { padding: 10px 16px; font-size: 0.82rem; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .picks-table { font-size: 0.8rem; }
+      .picks-table th, .picks-table td { padding: 10px 8px; }
+      .hide-mobile { display: none; }
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <div class="logo-icon">SP</div>
+        <span>Super Picks</span>
+      </a>
+      <div class="header-right">
+        <div class="market-badge" id="marketBadge">
+          <span class="market-dot"></span>
+          <span id="marketStatus">Loading...</span>
+        </div>
+        <span class="last-update" id="lastUpdate"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="picks">Live Picks</button>
+    <button class="nav-tab" data-tab="history">Performance</button>
+    <button class="nav-tab" data-tab="api">API Docs</button>
+  </nav>
+
+  <!-- ═══════ PICKS TAB ═══════ -->
+  <div class="tab-content active" id="tab-picks">
+    <div class="container">
+      <div class="stats-row" id="picksStats">
+        <div class="stat-card">
+          <div class="stat-label">Active Picks</div>
+          <div class="stat-value" id="statPicksCount">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Score</div>
+          <div class="stat-value" id="statAvgScore">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Strong Buy</div>
+          <div class="stat-value" id="statStrongBuy" style="color:var(--green)">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Win Rate</div>
+          <div class="stat-value" id="statWinRate">—</div>
+          <div class="stat-sub" id="statTradeCount"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Return</div>
+          <div class="stat-value" id="statAvgReturn">—</div>
+        </div>
+      </div>
+
+      <div class="section-title">Current Signals</div>
+      <div class="picks-table-wrap">
+        <div id="picksLoading" class="loading"><div class="spinner"></div>Loading picks...</div>
+        <table class="picks-table" id="picksTable" style="display:none">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Signal</th>
+              <th>Score</th>
+              <th>Price</th>
+              <th>Change</th>
+              <th class="hide-mobile">Indicators</th>
+              <th class="hide-mobile">Updated</th>
+            </tr>
+          </thead>
+          <tbody id="picksBody"></tbody>
+        </table>
+        <div id="picksEmpty" class="empty-state" style="display:none">
+          <div class="empty-icon">&#x1F4C8;</div>
+          <div class="empty-title">No picks yet</div>
+          <p>Picks will appear here once your Sparsh app pushes a scan.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ HISTORY TAB ═══════ -->
+  <div class="tab-content" id="tab-history">
+    <div class="container">
+      <div class="history-stats" id="historyStats"></div>
+
+      <div class="section-title">Trade History</div>
+      <div class="picks-table-wrap">
+        <div id="historyLoading" class="loading"><div class="spinner"></div>Loading history...</div>
+        <table class="picks-table" id="historyTable" style="display:none">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Signal</th>
+              <th>Entry</th>
+              <th>Exit</th>
+              <th>Return</th>
+              <th>Peak</th>
+              <th class="hide-mobile">Status</th>
+              <th class="hide-mobile">Date</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+        <div id="historyEmpty" class="empty-state" style="display:none">
+          <div class="empty-icon">&#x1F4CA;</div>
+          <div class="empty-title">No history yet</div>
+          <p>Performance tracking starts once picks are pushed from the app.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ API TAB ═══════ -->
+  <div class="tab-content" id="tab-api">
+    <div class="container">
+      <div class="api-section">
+        <div class="section-title">Trading Signals API</div>
+        <p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:0.9rem;">
+          Use these endpoints to integrate Super Picks with Robinhood agentic trading or any automated system.
+          Base URL: <code style="color:var(--accent)">https://superpickstrading.com</code>
+        </p>
+
+        <div class="api-endpoint">
+          <span class="api-method method-get">GET</span>
+          <span class="api-path">/api/signals</span>
+          <div class="api-desc">Trading signals optimized for bot consumption. Returns action (STRONG_BUY, BUY, HOLD), confidence score, and current price.</div>
+          <div class="code-block">{
+  "timestamp": "2025-01-15T15:30:00.000Z",
+  "market_open": true,
+  "count": 5,
+  "signals": [
+    {
+      "symbol": "NVDA",
+      "action": "STRONG_BUY",
+      "signal": "Strong Buy",
+      "score": 7.8,
+      "price": 148.50,
+      "change_pct": 2.3,
+      "confidence": 0.89,
+      "updated": "2025-01-15T15:25:00"
+    }
+  ]
+}</div>
+        </div>
+
+        <div class="api-endpoint">
+          <span class="api-method method-get">GET</span>
+          <span class="api-path">/api/picks</span>
+          <div class="api-desc">Full pick details with all indicator breakdowns (momentum, MACD, SMA, stochastic, volume, CCI, Williams %R).</div>
+          <div class="code-block">{
+  "timestamp": "2025-01-15T15:30:00.000Z",
+  "count": 5,
+  "picks": [
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA Corp",
+      "composite_score": 7.8,
+      "overall_signal": "Strong Buy",
+      "price": 148.50,
+      "momentum_score": 0.9,
+      "macd_score": 0.8,
+      "sma_score": 1.0,
+      "..."
+    }
+  ]
+}</div>
+        </div>
+
+        <div class="api-endpoint">
+          <span class="api-method method-get">GET</span>
+          <span class="api-path">/api/stats</span>
+          <div class="api-desc">Overall performance statistics — win rate, average return, best/worst trades, and recent scan logs.</div>
+        </div>
+
+        <div class="api-endpoint">
+          <span class="api-method method-get">GET</span>
+          <span class="api-path">/api/history?status=closed&amp;limit=50</span>
+          <div class="api-desc">Historical trades with entry/exit prices and returns. Filter by status: <code>active</code>, <code>closed</code>, or <code>all</code>.</div>
+        </div>
+
+        <div class="api-endpoint">
+          <span class="api-method method-post">POST</span>
+          <span class="api-path">/api/picks</span>
+          <div class="api-desc">Push picks from the Sparsh app. Requires <code>X-API-Key</code> header.</div>
+          <div class="code-block">// Header: X-API-Key: your-secret-key
+{
+  "picks": [
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA Corp",
+      "compositeScore": 7.8,
+      "overallSignal": "Strong Buy",
+      "price": 148.50,
+      "dailyChange": 2.3,
+      "indicators": {
+        "momentum": { "score": 0.9, "label": "Bullish" },
+        "macd": { "score": 0.8, "label": "Bullish Crossover" },
+        "sma": { "score": 1.0, "label": "Above SMA" },
+        "stochastic": { "score": 0.6, "label": "Bullish" },
+        "volume": { "score": 0.7, "label": "High Volume" },
+        "cci": { "score": 0.5, "label": "Bullish" },
+        "williamsR": { "score": 0.3, "label": "Neutral" }
+      }
+    }
+  ],
+  "scanMeta": { "totalScanned": 130, "scanTimeMs": 45000 }
+}</div>
+        </div>
+
+        <div class="section-title" style="margin-top:2rem;">Robinhood Integration Example</div>
+        <div class="api-endpoint">
+          <div class="api-desc">Python example for Robinhood agentic trading using the signals endpoint:</div>
+          <div class="code-block">import requests
+import robin_stocks.robinhood as rh
+
+# Fetch Super Picks signals
+signals = requests.get("https://superpickstrading.com/api/signals").json()
+
+# Login to Robinhood (use your own auth)
+rh.login(username="your_email", password="your_password")
+
+for signal in signals["signals"]:
+    if signal["action"] == "STRONG_BUY" and signal["confidence"] > 0.8:
+        # Place a market order
+        rh.orders.order_buy_market(
+            symbol=signal["symbol"],
+            quantity=1,
+            timeInForce="gfd"
+        )
+        print(f"Bought {signal['symbol']} at ${signal['price']}")
+
+rh.logout()</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════
+    // Super Picks Dashboard — Frontend
+    // ═══════════════════════════════════════
+
+    const API_BASE = window.location.origin;
+
+    // ── Tab Navigation ──
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+
+        if (tab.dataset.tab === 'history') loadHistory();
+      });
+    });
+
+    // ── Load Picks ──
+    async function loadPicks() {
+      try {
+        const [picksRes, statsRes] = await Promise.all([
+          fetch(API_BASE + '/api/picks'),
+          fetch(API_BASE + '/api/stats'),
+        ]);
+        const picksData = await picksRes.json();
+        const statsData = await statsRes.json();
+
+        document.getElementById('picksLoading').style.display = 'none';
+
+        // Update stats
+        const picks = picksData.picks || [];
+        document.getElementById('statPicksCount').textContent = picks.length;
+
+        const avgScore = picks.length > 0
+          ? (picks.reduce((s, p) => s + p.composite_score, 0) / picks.length).toFixed(1)
+          : '—';
+        document.getElementById('statAvgScore').textContent = avgScore;
+
+        const strongBuy = picks.filter(p => p.composite_score >= 6).length;
+        document.getElementById('statStrongBuy').textContent = strongBuy;
+
+        const perf = statsData.performance || {};
+        document.getElementById('statWinRate').textContent =
+          perf.total_trades > 0 ? perf.win_rate + '%' : '—';
+        document.getElementById('statTradeCount').textContent =
+          perf.total_trades > 0 ? `${perf.total_trades} closed trades` : '';
+        document.getElementById('statAvgReturn').textContent =
+          perf.total_trades > 0 ? formatReturn(perf.avg_return) : '—';
+        document.getElementById('statAvgReturn').className =
+          'stat-value ' + (perf.avg_return >= 0 ? 'change-positive' : 'change-negative');
+
+        // Update last scan time
+        if (picks.length > 0) {
+          const latest = picks[0].updated_at;
+          document.getElementById('lastUpdate').textContent = 'Last scan: ' + formatTime(latest);
+        }
+
+        // Render picks table
+        if (picks.length === 0) {
+          document.getElementById('picksEmpty').style.display = 'block';
+          document.getElementById('picksTable').style.display = 'none';
+          return;
+        }
+
+        document.getElementById('picksTable').style.display = 'table';
+        const tbody = document.getElementById('picksBody');
+        tbody.innerHTML = picks.map(p => `
+          <tr>
+            <td>
+              <div class="symbol-cell">
+                <span class="symbol-ticker">${esc(p.symbol)}</span>
+                <span class="symbol-name">${esc(p.name)}</span>
+              </div>
+            </td>
+            <td><span class="signal-badge ${signalClass(p.overall_signal)}">${esc(p.overall_signal)}</span></td>
+            <td>
+              <div class="score-bar-wrap">
+                <span class="score-val" style="color:${scoreColor(p.composite_score)}">${p.composite_score.toFixed(1)}</span>
+                <div class="score-bar">
+                  <div class="score-bar-fill" style="width:${scoreWidth(p.composite_score)}%;background:${scoreColor(p.composite_score)}"></div>
+                </div>
+              </div>
+            </td>
+            <td class="price-cell">$${p.price.toFixed(2)}</td>
+            <td class="${p.daily_change >= 0 ? 'change-positive' : 'change-negative'}" style="font-family:'JetBrains Mono',monospace;font-weight:600">
+              ${p.daily_change >= 0 ? '+' : ''}${p.daily_change.toFixed(2)}%
+            </td>
+            <td class="hide-mobile">
+              <div class="indicator-pills">
+                ${indicatorPill('MOM', p.momentum_score, p.momentum_label)}
+                ${indicatorPill('MACD', p.macd_score, p.macd_label)}
+                ${indicatorPill('SMA', p.sma_score, p.sma_label)}
+                ${indicatorPill('STOCH', p.stoch_score, p.stoch_label)}
+                ${indicatorPill('VOL', p.volume_score, p.volume_label)}
+                ${indicatorPill('CCI', p.cci_score, p.cci_label)}
+                ${indicatorPill('W%R', p.willr_score, p.willr_label)}
+              </div>
+            </td>
+            <td class="hide-mobile" style="color:var(--text-dim);font-size:0.78rem">${formatTime(p.updated_at)}</td>
+          </tr>
+        `).join('');
+
+        // Update market status
+        updateMarketStatus(picksData);
+
+      } catch (err) {
+        document.getElementById('picksLoading').innerHTML =
+          '<div style="color:var(--red)">Failed to load picks. Is the server running?</div>';
+        console.error('Load error:', err);
+      }
+    }
+
+    // ── Load History ──
+    async function loadHistory() {
+      try {
+        const [histRes, statsRes] = await Promise.all([
+          fetch(API_BASE + '/api/history?limit=200'),
+          fetch(API_BASE + '/api/stats'),
+        ]);
+        const histData = await histRes.json();
+        const statsData = await statsRes.json();
+
+        document.getElementById('historyLoading').style.display = 'none';
+
+        const perf = statsData.performance || {};
+        const statsHtml = `
+          <div class="stat-card">
+            <div class="stat-label">Total Trades</div>
+            <div class="stat-value">${perf.total_trades || 0}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Win Rate</div>
+            <div class="stat-value" style="color:${perf.win_rate >= 50 ? 'var(--green)' : 'var(--red)'}">
+              ${perf.total_trades > 0 ? perf.win_rate + '%' : '—'}
+            </div>
+            <div class="stat-sub">${perf.winners || 0}W / ${perf.losers || 0}L</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Return</div>
+            <div class="stat-value ${perf.avg_return >= 0 ? 'change-positive' : 'change-negative'}">
+              ${perf.total_trades > 0 ? formatReturn(perf.avg_return) : '—'}
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Best Trade</div>
+            <div class="stat-value change-positive">${perf.best_trade ? formatReturn(perf.best_trade) : '—'}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Worst Trade</div>
+            <div class="stat-value change-negative">${perf.worst_trade ? formatReturn(perf.worst_trade) : '—'}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Positions</div>
+            <div class="stat-value" style="color:var(--blue)">${statsData.active_positions || 0}</div>
+          </div>
+        `;
+        document.getElementById('historyStats').innerHTML = statsHtml;
+
+        const history = histData.history || [];
+        if (history.length === 0) {
+          document.getElementById('historyEmpty').style.display = 'block';
+          document.getElementById('historyTable').style.display = 'none';
+          return;
+        }
+
+        document.getElementById('historyTable').style.display = 'table';
+        const tbody = document.getElementById('historyBody');
+        tbody.innerHTML = history.map(h => {
+          const isActive = h.status === 'active';
+          const rowClass = isActive ? '' : (h.return_pct >= 0 ? 'trade-row-win' : 'trade-row-loss');
+          return `
+            <tr class="${rowClass}">
+              <td>
+                <div class="symbol-cell">
+                  <span class="symbol-ticker">${esc(h.symbol)}</span>
+                  <span class="symbol-name">${esc(h.name)}</span>
+                </div>
+              </td>
+              <td><span class="signal-badge ${signalClass(h.overall_signal)}">${esc(h.overall_signal)}</span></td>
+              <td class="price-cell">$${(h.entry_price || 0).toFixed(2)}</td>
+              <td class="price-cell">${isActive ? '—' : '$' + (h.exit_price || 0).toFixed(2)}</td>
+              <td style="font-family:'JetBrains Mono',monospace;font-weight:700" class="${!isActive ? (h.return_pct >= 0 ? 'change-positive' : 'change-negative') : ''}">
+                ${isActive ? '—' : formatReturn(h.return_pct)}
+              </td>
+              <td class="change-positive" style="font-family:'JetBrains Mono',monospace">
+                ${h.peak_return_pct > 0 ? '+' + h.peak_return_pct.toFixed(1) + '%' : '—'}
+              </td>
+              <td class="hide-mobile">
+                <span class="signal-badge ${isActive ? 'signal-buy' : 'signal-neutral'}">
+                  ${isActive ? 'Active' : 'Closed'}
+                </span>
+              </td>
+              <td class="hide-mobile" style="color:var(--text-dim);font-size:0.78rem">
+                ${formatDate(h.entry_date)}
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        document.getElementById('historyLoading').innerHTML =
+          '<div style="color:var(--red)">Failed to load history.</div>';
+      }
+    }
+
+    // ── Helpers ──
+    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+    function signalClass(signal) {
+      const s = (signal || '').toLowerCase();
+      if (s === 'strong buy') return 'signal-strong-buy';
+      if (s === 'buy') return 'signal-buy';
+      if (s === 'sell') return 'signal-sell';
+      if (s === 'strong sell') return 'signal-strong-sell';
+      return 'signal-neutral';
+    }
+
+    function scoreColor(score) {
+      if (score >= 6) return 'var(--green)';
+      if (score >= 2) return '#4CAF50';
+      if (score >= -2) return 'var(--text-muted)';
+      if (score >= -6) return 'var(--orange)';
+      return 'var(--red)';
+    }
+
+    function scoreWidth(score) {
+      return Math.max(5, ((score + 10) / 20) * 100);
+    }
+
+    function indicatorPill(abbr, score, label) {
+      const cls = score > 0.1 ? 'pill-bullish' : score < -0.1 ? 'pill-bearish' : 'pill-neutral';
+      const title = label ? `${abbr}: ${label}` : abbr;
+      return `<span class="indicator-pill ${cls}" title="${esc(title)}">${abbr}</span>`;
+    }
+
+    function formatReturn(val) {
+      if (val == null) return '—';
+      const sign = val >= 0 ? '+' : '';
+      return sign + val.toFixed(2) + '%';
+    }
+
+    function formatTime(dt) {
+      if (!dt) return '';
+      const d = new Date(dt + (dt.includes('Z') || dt.includes('+') ? '' : 'Z'));
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    function formatDate(dt) {
+      if (!dt) return '';
+      const d = new Date(dt + (dt.includes('Z') || dt.includes('+') ? '' : 'Z'));
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function updateMarketStatus() {
+      const now = new Date();
+      const ny = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const day = ny.getDay();
+      const t = ny.getHours() * 60 + ny.getMinutes();
+      const open = day >= 1 && day <= 5 && t >= 570 && t < 960;
+      const badge = document.getElementById('marketBadge');
+      const status = document.getElementById('marketStatus');
+      badge.className = 'market-badge ' + (open ? 'market-open' : 'market-closed');
+      status.textContent = open ? 'Market Open' : 'Market Closed';
+    }
+
+    // ── Init ──
+    loadPicks();
+    updateMarketStatus();
+    setInterval(loadPicks, 60000);       // Refresh every minute
+    setInterval(updateMarketStatus, 30000); // Update market status every 30s
+  </script>
+</body>
+</html>
