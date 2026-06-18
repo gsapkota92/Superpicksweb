@@ -422,7 +422,8 @@ async function runAlphaScan(getStore, persist) {
   // Persist to store
   // ────────────────────────────────────────────────
   const store = getStore();
-  store.alpha = enrichedPicks;
+  store.alpha.length = 0;
+  store.alpha.push(...enrichedPicks);
 
   // Append a snapshot to alphaHistory (keep last 50 scans)
   if (!Array.isArray(store.alphaHistory)) store.alphaHistory = [];

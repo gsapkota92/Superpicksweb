@@ -368,10 +368,12 @@ async function runFundamentalsScan(getStore, persist) {
   const store = getStore();
   const timestamp = new Date().toISOString();
 
-  store.fundamentals = results.map((r) => ({
+  const enriched = results.map((r) => ({
     ...r,
     updatedAt: timestamp,
   }));
+  store.fundamentals.length = 0;
+  store.fundamentals.push(...enriched);
 
   persist();
   lastScanTime = Date.now();
