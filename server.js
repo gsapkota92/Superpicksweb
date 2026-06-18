@@ -10,6 +10,9 @@ const path = require('path');
 const fs = require('fs');
 
 const { runScan } = require('./scanner');
+const { runAlphaScan } = require('./alpha-scanner');
+const { runFundamentalsScan } = require('./fundamentals-scanner');
+const { computeSentiment } = require('./sentiment');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,12 +34,18 @@ function saveJSON(file, data) {
 let picks = loadJSON('picks.json', []);
 let history = loadJSON('history.json', []);
 let scanLogs = loadJSON('scanlogs.json', []);
-let nextId = loadJSON('nextid.json', { pick: 1, hist: 1 });
+let alpha = loadJSON('alpha.json', []);
+let alphaHistory = loadJSON('alpha-history.json', []);
+let fundamentals = loadJSON('fundamentals.json', []);
+let nextId = loadJSON('nextid.json', { pick: 1, hist: 1, alpha: 1 });
 
 function persist() {
   saveJSON('picks.json', picks);
   saveJSON('history.json', history);
   saveJSON('scanlogs.json', scanLogs);
+  saveJSON('alpha.json', alpha);
+  saveJSON('alpha-history.json', alphaHistory);
+  saveJSON('fundamentals.json', fundamentals);
   saveJSON('nextid.json', nextId);
 }
 
@@ -118,9 +127,35 @@ app.get('/api/stats', (req, res) => {
   });
 });
 
+// GET /api/alpha — Alpha Engine smart money picks
+app.get('/api/alpha', (req, res) => {
+  res.json({ timestamp: new Date().toISOString(), count: alpha.length, picks: alpha });
+});
+
+// GET /api/fundamentals — Long-term fundamentals scores
+app.get('/api/fundamentals', (req, res) => {
+  res.json({ timestamp: new Date().toISOString(), count: fundamentals.length, stocks: fundamentals });
+});
+
+// GET /api/sentiment — Market sentiment gauge
+app.get('/api/sentiment', async (req, res) => {
+  try {
+    const data = await computeSentiment();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/health
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString(),
+    data: {
+      picks: picks.length, alpha: alpha.length, fundamentals: fundamentals.length,
+      history: history.length,
+    },
+  });
 });
 
 // ═══════════════════════════════════════════════════
@@ -267,9 +302,14 @@ async function autoScan() {
   if (scanning) return;
   scanning = true;
   try {
+    // Run all scanners in sequence (to avoid overloading Yahoo)
+    console.log('\n[AutoScan] Starting full scan...');
     await runScan(() => ({ picks, history, scanLogs, nextId }), persist);
+    await runAlphaScan(() => ({ alpha, alphaHistory, nextId }), persist);
+    await runFundamentalsScan(() => ({ fundamentals, nextId }), persist);
+    console.log('[AutoScan] All scans complete.\n');
   } catch (err) {
-    console.error('[Scanner] Error:', err.message);
+    console.error('[AutoScan] Error:', err.message);
   }
   scanning = false;
 }

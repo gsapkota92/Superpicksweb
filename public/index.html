@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Super Picks Trading — Live TA Signals</title>
+  <title>Super Picks Trading — Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -27,6 +27,11 @@
       --orange: #feb019;
       --orange-bg: rgba(254,176,25,0.12);
       --purple: #b57bff;
+      --purple-bg: rgba(181,123,255,0.12);
+      --yellow: #ffd534;
+      --yellow-bg: rgba(255,213,52,0.12);
+      --gold: #f0b90b;
+      --gold-bg: rgba(240,185,11,0.15);
       --accent: #00e396;
     }
 
@@ -60,6 +65,7 @@
       background: linear-gradient(135deg, var(--green), #00b87a);
       display: flex; align-items: center; justify-content: center;
       font-size: 18px; color: #fff; font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
     }
     .header-right { display: flex; align-items: center; gap: 1.5rem; }
     .market-badge {
@@ -68,9 +74,7 @@
     }
     .market-open { background: var(--green-bg); color: var(--green); }
     .market-closed { background: var(--red-bg); color: var(--red); }
-    .market-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-    }
+    .market-dot { width: 8px; height: 8px; border-radius: 50%; }
     .market-open .market-dot { background: var(--green); animation: pulse 2s infinite; }
     .market-closed .market-dot { background: var(--red); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
@@ -87,6 +91,7 @@
       padding: 12px 24px; font-size: 0.88rem; font-weight: 600;
       color: var(--text-muted); cursor: pointer; border: none; background: none;
       border-bottom: 2px solid transparent; transition: all 0.2s;
+      white-space: nowrap;
     }
     .nav-tab:hover { color: var(--text); }
     .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -103,11 +108,17 @@
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 12px; padding: 1rem 1.25rem;
     }
-    .stat-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-    .stat-value { font-size: 1.5rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .stat-label {
+      font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 4px;
+    }
+    .stat-value {
+      font-size: 1.5rem; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
     .stat-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 
-    /* ── Picks Table ── */
+    /* ── Tables ── */
     .section-title {
       font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;
       display: flex; align-items: center; gap: 8px;
@@ -116,9 +127,7 @@
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 12px; overflow: hidden;
     }
-    .picks-table {
-      width: 100%; border-collapse: collapse;
-    }
+    .picks-table { width: 100%; border-collapse: collapse; }
     .picks-table th {
       text-align: left; padding: 12px 16px; font-size: 0.72rem;
       color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em;
@@ -134,7 +143,10 @@
 
     .symbol-cell { display: flex; flex-direction: column; }
     .symbol-ticker { font-weight: 700; font-size: 0.95rem; color: #fff; }
-    .symbol-name { font-size: 0.72rem; color: var(--text-dim); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .symbol-name {
+      font-size: 0.72rem; color: var(--text-dim); max-width: 160px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
 
     .signal-badge {
       display: inline-block; padding: 4px 10px; border-radius: 6px;
@@ -143,16 +155,20 @@
     .signal-strong-buy { background: var(--green-bg); color: var(--green); }
     .signal-buy { background: rgba(76,175,80,0.15); color: #4CAF50; }
     .signal-neutral { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+    .signal-hold { background: var(--yellow-bg); color: var(--yellow); }
     .signal-sell { background: var(--red-bg); color: var(--red); }
     .signal-strong-sell { background: rgba(211,47,47,0.15); color: #D32F2F; }
 
     .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
     .score-bar {
-      width: 60px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08);
-      overflow: hidden;
+      width: 60px; height: 6px; border-radius: 3px;
+      background: rgba(255,255,255,0.08); overflow: hidden;
     }
     .score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
-    .score-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.85rem; min-width: 36px; }
+    .score-val {
+      font-family: 'JetBrains Mono', monospace; font-weight: 600;
+      font-size: 0.85rem; min-width: 36px;
+    }
 
     .price-cell { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
     .change-positive { color: var(--green); }
@@ -167,14 +183,179 @@
     .pill-bearish { background: var(--red-bg); color: var(--red); }
     .pill-neutral { background: rgba(148,163,184,0.1); color: var(--text-dim); }
 
-    /* ── History Tab ── */
-    .history-stats {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    /* ── Overview: Sentiment Gauge ── */
+    .overview-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .gauge-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.5rem; display: flex;
+      flex-direction: column; align-items: center; justify-content: center;
+    }
+    .gauge-title {
+      font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 1rem; font-weight: 600;
+    }
+    .gauge-svg { width: 220px; height: 130px; }
+    .gauge-score {
+      font-family: 'JetBrains Mono', monospace; font-size: 2.5rem;
+      font-weight: 800; margin-top: 0.5rem;
+    }
+    .gauge-label { font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem; }
+
+    .summary-cards {
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .summary-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.25rem; display: flex;
+      align-items: center; gap: 1rem; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .summary-card:hover {
+      border-color: var(--accent); background: var(--bg-card-hover);
+    }
+    .summary-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; flex-shrink: 0;
+    }
+    .summary-icon.tech { background: var(--green-bg); color: var(--green); }
+    .summary-icon.alpha { background: var(--purple-bg); color: var(--purple); }
+    .summary-icon.longterm { background: var(--blue-bg); color: var(--blue); }
+    .summary-count {
+      font-family: 'JetBrains Mono', monospace; font-size: 1.6rem;
+      font-weight: 800; color: #fff;
+    }
+    .summary-label { font-size: 0.82rem; color: var(--text-muted); }
+
+    /* ── Overview: Index Cards ── */
+    .index-cards {
+      display: grid; grid-template-columns: repeat(4, 1fr);
       gap: 1rem; margin-bottom: 1.5rem;
     }
+    .index-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.25rem;
+      transition: border-color 0.2s;
+    }
+    .index-card:hover { border-color: rgba(255,255,255,0.1); }
+    .index-symbol {
+      font-size: 0.78rem; font-weight: 700; color: var(--text-muted);
+      margin-bottom: 4px; letter-spacing: 0.03em;
+    }
+    .index-name { font-size: 0.68rem; color: var(--text-dim); margin-bottom: 8px; }
+    .index-price {
+      font-family: 'JetBrains Mono', monospace; font-size: 1.15rem;
+      font-weight: 700; color: #fff;
+    }
+    .index-change {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;
+      font-weight: 600; margin-top: 2px;
+    }
 
-    .trade-row-win td { border-left: 3px solid var(--green); }
-    .trade-row-loss td { border-left: 3px solid var(--red); }
+    /* ── Overview: Sector Heatmap ── */
+    .sector-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.75rem; margin-bottom: 1.5rem;
+    }
+    .sector-card {
+      border-radius: 10px; padding: 0.9rem; text-align: center;
+      border: 1px solid var(--border); transition: transform 0.15s;
+    }
+    .sector-card:hover { transform: translateY(-2px); }
+    .sector-name {
+      font-size: 0.7rem; font-weight: 600; color: rgba(255,255,255,0.9);
+      margin-bottom: 4px; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sector-change {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    /* ── Alpha Tab: Tier Badges ── */
+    .tier-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .tier-S { background: var(--gold-bg); color: var(--gold); border: 1px solid rgba(240,185,11,0.3); }
+    .tier-A { background: var(--green-bg); color: var(--green); border: 1px solid rgba(0,227,150,0.3); }
+    .tier-B { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(123,167,255,0.3); }
+    .tier-C { background: rgba(148,163,184,0.1); color: var(--text-dim); border: 1px solid rgba(148,163,184,0.2); }
+
+    .conviction-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .conviction-bar {
+      width: 80px; height: 6px; border-radius: 3px;
+      background: rgba(255,255,255,0.08); overflow: hidden;
+    }
+    .conviction-bar-fill { height: 100%; border-radius: 3px; }
+    .conviction-val {
+      font-family: 'JetBrains Mono', monospace; font-weight: 600;
+      font-size: 0.82rem; min-width: 30px;
+    }
+
+    .source-pill {
+      display: inline-block; font-size: 0.65rem; padding: 2px 8px;
+      border-radius: 4px; font-weight: 600; margin: 1px 2px;
+    }
+    .source-darkpool { background: var(--purple-bg); color: var(--purple); }
+    .source-insider { background: var(--orange-bg); color: var(--orange); }
+    .source-options { background: var(--blue-bg); color: var(--blue); }
+    .source-default { background: rgba(148,163,184,0.1); color: var(--text-dim); }
+
+    /* ── Long Term Tab: Score Colors ── */
+    .fund-score {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .fund-score-bar {
+      width: 50px; height: 6px; border-radius: 3px;
+      background: rgba(255,255,255,0.08); overflow: hidden;
+      margin-top: 3px;
+    }
+    .fund-score-fill { height: 100%; border-radius: 3px; }
+
+    .label-strong-buy { background: var(--green-bg); color: var(--green); }
+    .label-buy { background: rgba(76,175,80,0.15); color: #4CAF50; }
+    .label-hold { background: var(--yellow-bg); color: var(--yellow); }
+    .label-weak { background: var(--orange-bg); color: var(--orange); }
+    .label-avoid { background: var(--red-bg); color: var(--red); }
+
+    /* ── Charts Tab ── */
+    .chart-controls {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .chart-search {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px; color: var(--text);
+      font-family: 'Inter', sans-serif; font-size: 0.9rem;
+      outline: none; width: 200px; transition: border-color 0.2s;
+    }
+    .chart-search:focus { border-color: var(--accent); }
+    .chart-search::placeholder { color: var(--text-dim); }
+    .quick-picks { display: flex; gap: 6px; flex-wrap: wrap; }
+    .quick-pick {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 14px; color: var(--text-muted);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; font-family: 'JetBrains Mono', monospace;
+    }
+    .quick-pick:hover, .quick-pick.active {
+      background: var(--green-bg); border-color: var(--green);
+      color: var(--green);
+    }
+    .chart-frame-wrap {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .chart-frame-wrap iframe {
+      width: 100%; height: 500px; border: none; display: block;
+    }
 
     /* ── API Tab ── */
     .api-section { max-width: 900px; }
@@ -188,23 +369,24 @@
     }
     .method-get { background: var(--green-bg); color: var(--green); }
     .method-post { background: var(--blue-bg); color: var(--blue); }
-    .api-path { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 600; }
+    .api-path {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 600;
+    }
     .api-desc { color: var(--text-muted); font-size: 0.85rem; margin-top: 8px; }
     .code-block {
       background: #0d1117; border: 1px solid var(--border); border-radius: 8px;
       padding: 1rem; margin-top: 12px; overflow-x: auto;
       font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;
-      color: #e6edf3; line-height: 1.6;
+      color: #e6edf3; line-height: 1.6; white-space: pre;
     }
 
-    /* ── Empty State ── */
+    /* ── Empty / Loading States ── */
     .empty-state {
       text-align: center; padding: 4rem 2rem; color: var(--text-muted);
     }
     .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
     .empty-title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
 
-    /* ── Loading ── */
     .loading { text-align: center; padding: 3rem; color: var(--text-dim); }
     .spinner {
       width: 32px; height: 32px; border: 3px solid var(--border);
@@ -214,19 +396,39 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .overview-grid { grid-template-columns: 1fr; }
+      .index-cards { grid-template-columns: repeat(2, 1fr); }
+    }
     @media (max-width: 768px) {
       .header { padding: 0 1rem; }
       .container { padding: 1rem; }
-      .nav-tabs { padding: 0 1rem; overflow-x: auto; }
-      .nav-tab { padding: 10px 16px; font-size: 0.82rem; }
+      .nav-tabs { padding: 0 0.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .nav-tab { padding: 10px 14px; font-size: 0.8rem; }
       .stats-row { grid-template-columns: repeat(2, 1fr); }
       .picks-table { font-size: 0.8rem; }
       .picks-table th, .picks-table td { padding: 10px 8px; }
       .hide-mobile { display: none; }
+      .index-cards { grid-template-columns: repeat(2, 1fr); }
+      .sector-grid { grid-template-columns: repeat(3, 1fr); }
+      .chart-controls { flex-direction: column; align-items: stretch; }
+      .chart-search { width: 100%; }
+      .overview-grid { grid-template-columns: 1fr; }
+      .gauge-svg { width: 180px; height: 110px; }
     }
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+
+    /* Clickable rows */
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover td { background: rgba(0,227,150,0.04) !important; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
   </style>
 </head>
 <body>
@@ -250,42 +452,102 @@
 
   <!-- Navigation -->
   <nav class="nav-tabs">
-    <button class="nav-tab active" data-tab="picks">Live Picks</button>
-    <button class="nav-tab" data-tab="history">Performance</button>
-    <button class="nav-tab" data-tab="api">API Docs</button>
+    <button class="nav-tab active" data-tab="overview">Overview</button>
+    <button class="nav-tab" data-tab="technical">Technical</button>
+    <button class="nav-tab" data-tab="alpha">Alpha</button>
+    <button class="nav-tab" data-tab="longterm">Long Term</button>
+    <button class="nav-tab" data-tab="charts">Charts</button>
+    <button class="nav-tab" data-tab="api">API</button>
   </nav>
 
-  <!-- ═══════ PICKS TAB ═══════ -->
-  <div class="tab-content active" id="tab-picks">
+  <!-- ═══════ OVERVIEW TAB ═══════ -->
+  <div class="tab-content active" id="tab-overview">
     <div class="container">
-      <div class="stats-row" id="picksStats">
-        <div class="stat-card">
-          <div class="stat-label">Active Picks</div>
-          <div class="stat-value" id="statPicksCount">—</div>
+      <div class="overview-grid">
+        <!-- Sentiment Gauge -->
+        <div class="gauge-card">
+          <div class="gauge-title">Market Sentiment</div>
+          <svg class="gauge-svg" viewBox="0 0 220 130" id="sentimentGauge">
+            <!-- Background arc -->
+            <path d="M 20 120 A 90 90 0 0 1 200 120" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14" stroke-linecap="round"/>
+            <!-- Gradient defs -->
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ff4560"/>
+                <stop offset="25%" stop-color="#feb019"/>
+                <stop offset="50%" stop-color="#ffd534"/>
+                <stop offset="75%" stop-color="#4CAF50"/>
+                <stop offset="100%" stop-color="#00e396"/>
+              </linearGradient>
+            </defs>
+            <!-- Value arc (filled dynamically) -->
+            <path id="gaugeArc" d="M 20 120 A 90 90 0 0 1 200 120" fill="none" stroke="url(#gaugeGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 283"/>
+            <!-- Needle -->
+            <line id="gaugeNeedle" x1="110" y1="120" x2="110" y2="40" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" transform="rotate(-90 110 120)"/>
+            <circle cx="110" cy="120" r="5" fill="rgba(255,255,255,0.8)"/>
+          </svg>
+          <div class="gauge-score" id="sentimentScore" style="color:var(--text-dim)">--</div>
+          <div class="gauge-label" id="sentimentLabel" style="color:var(--text-dim)">Loading...</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Avg Score</div>
-          <div class="stat-value" id="statAvgScore">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Strong Buy</div>
-          <div class="stat-value" id="statStrongBuy" style="color:var(--green)">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Win Rate</div>
-          <div class="stat-value" id="statWinRate">—</div>
-          <div class="stat-sub" id="statTradeCount"></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Avg Return</div>
-          <div class="stat-value" id="statAvgReturn">—</div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+          <div class="summary-card" onclick="switchTab('technical')">
+            <div class="summary-icon tech">TA</div>
+            <div>
+              <div class="summary-count" id="summaryTechCount">--</div>
+              <div class="summary-label">Technical Picks</div>
+            </div>
+          </div>
+          <div class="summary-card" onclick="switchTab('alpha')">
+            <div class="summary-icon alpha">SM</div>
+            <div>
+              <div class="summary-count" id="summaryAlphaCount">--</div>
+              <div class="summary-label">Alpha Signals</div>
+            </div>
+          </div>
+          <div class="summary-card" onclick="switchTab('longterm')">
+            <div class="summary-icon longterm">FD</div>
+            <div>
+              <div class="summary-count" id="summaryLtCount">--</div>
+              <div class="summary-label">Long Term Buys</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="section-title">Current Signals</div>
+      <!-- Index Cards -->
+      <div class="section-title">Market Indices</div>
+      <div class="index-cards" id="indexCards">
+        <div class="index-card"><div class="index-symbol">SPY</div><div class="index-name">S&amp;P 500</div><div class="index-price" style="color:var(--text-dim)">--</div><div class="index-change" style="color:var(--text-dim)">--</div></div>
+        <div class="index-card"><div class="index-symbol">QQQ</div><div class="index-name">Nasdaq 100</div><div class="index-price" style="color:var(--text-dim)">--</div><div class="index-change" style="color:var(--text-dim)">--</div></div>
+        <div class="index-card"><div class="index-symbol">DIA</div><div class="index-name">Dow Jones</div><div class="index-price" style="color:var(--text-dim)">--</div><div class="index-change" style="color:var(--text-dim)">--</div></div>
+        <div class="index-card"><div class="index-symbol">IWM</div><div class="index-name">Russell 2000</div><div class="index-price" style="color:var(--text-dim)">--</div><div class="index-change" style="color:var(--text-dim)">--</div></div>
+      </div>
+
+      <!-- Sector Heatmap -->
+      <div class="section-title">Sector Heatmap</div>
+      <div class="sector-grid" id="sectorGrid">
+        <div class="sector-card" style="background:var(--bg-card)"><div class="sector-name">Loading...</div><div class="sector-change" style="color:var(--text-dim)">--</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ TECHNICAL TAB ═══════ -->
+  <div class="tab-content" id="tab-technical">
+    <div class="container">
+      <div class="stats-row" id="techStats">
+        <div class="stat-card"><div class="stat-label">Active Picks</div><div class="stat-value" id="techPicksCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">Avg Score</div><div class="stat-value" id="techAvgScore">--</div></div>
+        <div class="stat-card"><div class="stat-label">Strong Buy</div><div class="stat-value" id="techStrongBuy" style="color:var(--green)">--</div></div>
+        <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="techWinRate">--</div><div class="stat-sub" id="techTradeCount"></div></div>
+        <div class="stat-card"><div class="stat-label">Avg Return</div><div class="stat-value" id="techAvgReturn">--</div></div>
+      </div>
+
+      <div class="section-title">Current Technical Signals</div>
       <div class="picks-table-wrap">
-        <div id="picksLoading" class="loading"><div class="spinner"></div>Loading picks...</div>
-        <table class="picks-table" id="picksTable" style="display:none">
+        <div id="techLoading" class="loading"><div class="spinner"></div>Loading picks...</div>
+        <table class="picks-table" id="techTable" style="display:none">
           <thead>
             <tr>
               <th>Symbol</th>
@@ -297,45 +559,101 @@
               <th class="hide-mobile">Updated</th>
             </tr>
           </thead>
-          <tbody id="picksBody"></tbody>
+          <tbody id="techBody"></tbody>
         </table>
-        <div id="picksEmpty" class="empty-state" style="display:none">
+        <div id="techEmpty" class="empty-state" style="display:none">
           <div class="empty-icon">&#x1F4C8;</div>
           <div class="empty-title">No picks yet</div>
-          <p>Picks will appear here once your Sparsh app pushes a scan.</p>
+          <p>Technical picks will appear here once a scan completes.</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ═══════ HISTORY TAB ═══════ -->
-  <div class="tab-content" id="tab-history">
+  <!-- ═══════ ALPHA TAB ═══════ -->
+  <div class="tab-content" id="tab-alpha">
     <div class="container">
-      <div class="history-stats" id="historyStats"></div>
+      <div class="stats-row" id="alphaStats">
+        <div class="stat-card"><div class="stat-label">Total Signals</div><div class="stat-value" id="alphaTotal">--</div></div>
+        <div class="stat-card"><div class="stat-label">S-Tier</div><div class="stat-value" id="alphaSTier" style="color:var(--gold)">--</div></div>
+        <div class="stat-card"><div class="stat-label">Avg Conviction</div><div class="stat-value" id="alphaAvgConviction">--</div></div>
+      </div>
 
-      <div class="section-title">Trade History</div>
+      <div class="section-title">Smart Money Alpha Signals</div>
       <div class="picks-table-wrap">
-        <div id="historyLoading" class="loading"><div class="spinner"></div>Loading history...</div>
-        <table class="picks-table" id="historyTable" style="display:none">
+        <div id="alphaLoading" class="loading"><div class="spinner"></div>Loading alpha signals...</div>
+        <table class="picks-table" id="alphaTable" style="display:none">
           <thead>
             <tr>
               <th>Symbol</th>
-              <th>Signal</th>
-              <th>Entry</th>
-              <th>Exit</th>
-              <th>Return</th>
-              <th>Peak</th>
-              <th class="hide-mobile">Status</th>
-              <th class="hide-mobile">Date</th>
+              <th>Tier</th>
+              <th>Conviction</th>
+              <th class="hide-mobile">Sources</th>
+              <th>Price</th>
+              <th>Change</th>
             </tr>
           </thead>
-          <tbody id="historyBody"></tbody>
+          <tbody id="alphaBody"></tbody>
         </table>
-        <div id="historyEmpty" class="empty-state" style="display:none">
-          <div class="empty-icon">&#x1F4CA;</div>
-          <div class="empty-title">No history yet</div>
-          <p>Performance tracking starts once picks are pushed from the app.</p>
+        <div id="alphaEmpty" class="empty-state" style="display:none">
+          <div class="empty-icon">&#x1F50D;</div>
+          <div class="empty-title">No alpha signals</div>
+          <p>Smart money signals will appear when unusual activity is detected.</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ LONG TERM TAB ═══════ -->
+  <div class="tab-content" id="tab-longterm">
+    <div class="container">
+      <div class="section-title">Fundamental Analysis Scores</div>
+      <div class="picks-table-wrap">
+        <div id="ltLoading" class="loading"><div class="spinner"></div>Loading fundamentals...</div>
+        <table class="picks-table" id="ltTable" style="display:none">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Sector</th>
+              <th>Score</th>
+              <th>Rating</th>
+              <th>P/E</th>
+              <th class="hide-mobile">Profit Margin</th>
+              <th class="hide-mobile">ROE</th>
+              <th class="hide-mobile">Div Yield</th>
+              <th>1Y Return</th>
+            </tr>
+          </thead>
+          <tbody id="ltBody"></tbody>
+        </table>
+        <div id="ltEmpty" class="empty-state" style="display:none">
+          <div class="empty-icon">&#x1F4CA;</div>
+          <div class="empty-title">No fundamental data</div>
+          <p>Fundamental scores will appear once data is available.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ CHARTS TAB ═══════ -->
+  <div class="tab-content" id="tab-charts">
+    <div class="container">
+      <div class="section-title">Interactive Chart</div>
+      <div class="chart-controls">
+        <input type="text" class="chart-search" id="chartSearchInput" placeholder="Enter symbol (e.g. AAPL)" spellcheck="false" autocomplete="off">
+        <div class="quick-picks" id="quickPicks">
+          <button class="quick-pick active" data-symbol="AAPL">AAPL</button>
+          <button class="quick-pick" data-symbol="NVDA">NVDA</button>
+          <button class="quick-pick" data-symbol="TSLA">TSLA</button>
+          <button class="quick-pick" data-symbol="MSFT">MSFT</button>
+          <button class="quick-pick" data-symbol="AMZN">AMZN</button>
+          <button class="quick-pick" data-symbol="META">META</button>
+          <button class="quick-pick" data-symbol="AMD">AMD</button>
+          <button class="quick-pick" data-symbol="GOOGL">GOOGL</button>
+        </div>
+      </div>
+      <div class="chart-frame-wrap">
+        <iframe id="tvChart" src="" allowfullscreen></iframe>
       </div>
     </div>
   </div>
@@ -346,10 +664,11 @@
       <div class="api-section">
         <div class="section-title">Trading Signals API</div>
         <p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:0.9rem;">
-          Use these endpoints to integrate Super Picks with Robinhood agentic trading or any automated system.
+          Use these endpoints to integrate Super Picks with automated trading systems.
           Base URL: <code style="color:var(--accent)">https://superpickstrading.com</code>
         </p>
 
+        <!-- /api/signals -->
         <div class="api-endpoint">
           <span class="api-method method-get">GET</span>
           <span class="api-path">/api/signals</span>
@@ -373,13 +692,12 @@
 }</div>
         </div>
 
+        <!-- /api/picks -->
         <div class="api-endpoint">
           <span class="api-method method-get">GET</span>
           <span class="api-path">/api/picks</span>
-          <div class="api-desc">Full pick details with all indicator breakdowns (momentum, MACD, SMA, stochastic, volume, CCI, Williams %R).</div>
+          <div class="api-desc">Full technical pick details with all indicator breakdowns (momentum, MACD, SMA, stochastic, volume, CCI, Williams %R).</div>
           <div class="code-block">{
-  "timestamp": "2025-01-15T15:30:00.000Z",
-  "count": 5,
   "picks": [
     {
       "symbol": "NVDA",
@@ -387,31 +705,105 @@
       "composite_score": 7.8,
       "overall_signal": "Strong Buy",
       "price": 148.50,
-      "momentum_score": 0.9,
-      "macd_score": 0.8,
-      "sma_score": 1.0,
-      "..."
+      "daily_change": 2.3,
+      "momentum_score": 0.9, "momentum_label": "Bullish",
+      "macd_score": 0.8, "macd_label": "Bullish Crossover",
+      "sma_score": 1.0, "sma_label": "Above SMA",
+      "stoch_score": 0.6, "stoch_label": "Bullish",
+      "volume_score": 0.7, "volume_label": "High Volume",
+      "cci_score": 0.5, "cci_label": "Bullish",
+      "willr_score": 0.3, "willr_label": "Neutral",
+      "updated_at": "2025-01-15T15:25:00"
     }
   ]
 }</div>
         </div>
 
+        <!-- /api/alpha -->
+        <div class="api-endpoint">
+          <span class="api-method method-get">GET</span>
+          <span class="api-path">/api/alpha</span>
+          <div class="api-desc">Smart money alpha signals from unusual activity detection. Includes conviction scores, tier rankings, and source breakdown (dark pool, insider, options flow).</div>
+          <div class="code-block">{
+  "picks": [
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc",
+      "price": 234.50,
+      "dailyChange": 1.8,
+      "conviction": 87,
+      "tier": "S",
+      "sources": ["darkpool", "options"],
+      "updatedAt": "2025-01-15T15:30:00"
+    }
+  ]
+}</div>
+        </div>
+
+        <!-- /api/fundamentals -->
+        <div class="api-endpoint">
+          <span class="api-method method-get">GET</span>
+          <span class="api-path">/api/fundamentals</span>
+          <div class="api-desc">Fundamental analysis scores with financial metrics. Each stock receives a 1-10 score based on valuation, profitability, growth, and financial health.</div>
+          <div class="code-block">{
+  "stocks": [
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft Corp",
+      "sector": "Technology",
+      "price": 425.00,
+      "return1Y": 28.5,
+      "dividendYield": 0.72,
+      "pe": 35.2,
+      "profitMargin": 36.4,
+      "returnOnEquity": 38.5,
+      "debtToEquity": 0.42,
+      "fundamentalScore": 8.5,
+      "overallLabel": "Strong Buy",
+      "signals": { ... }
+    }
+  ]
+}</div>
+        </div>
+
+        <!-- /api/sentiment -->
+        <div class="api-endpoint">
+          <span class="api-method method-get">GET</span>
+          <span class="api-path">/api/sentiment</span>
+          <div class="api-desc">Market sentiment score with index performance, sector breakdown, and breadth data. Score 0-100 (Fear to Greed).</div>
+          <div class="code-block">{
+  "score": 62,
+  "label": "Greed",
+  "zone": "greed",
+  "indices": [
+    { "symbol": "SPY", "name": "S&amp;P 500", "price": 595.20, "change": 0.85 }
+  ],
+  "sectors": [
+    { "symbol": "XLK", "name": "Technology", "change": 1.2 }
+  ],
+  "breadth": { ... }
+}</div>
+        </div>
+
+        <!-- /api/stats -->
         <div class="api-endpoint">
           <span class="api-method method-get">GET</span>
           <span class="api-path">/api/stats</span>
-          <div class="api-desc">Overall performance statistics — win rate, average return, best/worst trades, and recent scan logs.</div>
+          <div class="api-desc">Overall performance statistics -- win rate, average return, best/worst trades, and recent scan logs.</div>
         </div>
 
+        <!-- /api/history -->
         <div class="api-endpoint">
           <span class="api-method method-get">GET</span>
           <span class="api-path">/api/history?status=closed&amp;limit=50</span>
           <div class="api-desc">Historical trades with entry/exit prices and returns. Filter by status: <code>active</code>, <code>closed</code>, or <code>all</code>.</div>
         </div>
 
+        <!-- POST /api/picks -->
         <div class="api-endpoint">
           <span class="api-method method-post">POST</span>
           <span class="api-path">/api/picks</span>
-          <div class="api-desc">Push picks from the Sparsh app. Requires <code>X-API-Key</code> header.</div>
+          <div class="api-desc">Push picks from the scanner. Requires <code>X-API-Key</code> header.</div>
           <div class="code-block">// Header: X-API-Key: your-secret-key
 {
   "picks": [
@@ -439,7 +831,7 @@
 
         <div class="section-title" style="margin-top:2rem;">Robinhood Integration Example</div>
         <div class="api-endpoint">
-          <div class="api-desc">Python example for Robinhood agentic trading using the signals endpoint:</div>
+          <div class="api-desc">Python example for automated trading using the signals endpoint:</div>
           <div class="code-block">import requests
 import robin_stocks.robinhood as rh
 
@@ -461,81 +853,227 @@ for signal in signals["signals"]:
 
 rh.logout()</div>
         </div>
-
       </div>
     </div>
   </div>
 
   <script>
-    // ═══════════════════════════════════════
-    // Super Picks Dashboard — Frontend
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════
+    // Super Picks Trading Dashboard — Frontend
+    // ═══════════════════════════════════════════
 
     const API_BASE = window.location.origin;
 
-    // ── Tab Navigation ──
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    // Track which tabs have been loaded
+    const tabLoaded = {
+      overview: false,
+      technical: false,
+      alpha: false,
+      longterm: false,
+      charts: false,
+      api: true // static content
+    };
 
-        if (tab.dataset.tab === 'history') loadHistory();
-      });
+    // Auto-refresh interval
+    let refreshInterval = null;
+
+    // ── Tab Navigation ──
+    function switchTab(tabName) {
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      const tabBtn = document.querySelector(`.nav-tab[data-tab="${tabName}"]`);
+      if (tabBtn) tabBtn.classList.add('active');
+      document.getElementById('tab-' + tabName).classList.add('active');
+
+      // Lazy load tab data on first visit
+      if (!tabLoaded[tabName]) {
+        switch (tabName) {
+          case 'technical': loadTechnical(); break;
+          case 'alpha': loadAlpha(); break;
+          case 'longterm': loadLongTerm(); break;
+          case 'charts': loadChart('AAPL'); break;
+        }
+        tabLoaded[tabName] = true;
+      }
+    }
+
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
 
-    // ── Load Picks ──
-    async function loadPicks() {
+    // ═══════ OVERVIEW ═══════
+
+    async function loadOverview() {
+      try {
+        const responses = await Promise.allSettled([
+          fetch(API_BASE + '/api/sentiment'),
+          fetch(API_BASE + '/api/picks'),
+          fetch(API_BASE + '/api/alpha'),
+          fetch(API_BASE + '/api/fundamentals')
+        ]);
+
+        // Sentiment
+        if (responses[0].status === 'fulfilled' && responses[0].value.ok) {
+          const sentiment = await responses[0].value.json();
+          renderSentimentGauge(sentiment);
+          renderIndices(sentiment.indices || []);
+          renderSectors(sentiment.sectors || []);
+        }
+
+        // Tech picks count
+        if (responses[1].status === 'fulfilled' && responses[1].value.ok) {
+          const picksData = await responses[1].value.json();
+          const picks = picksData.picks || [];
+          document.getElementById('summaryTechCount').textContent = picks.length;
+
+          // Update last scan time
+          if (picks.length > 0 && picks[0].updated_at) {
+            document.getElementById('lastUpdate').textContent = 'Last scan: ' + formatTime(picks[0].updated_at);
+          }
+        }
+
+        // Alpha count
+        if (responses[2].status === 'fulfilled' && responses[2].value.ok) {
+          const alphaData = await responses[2].value.json();
+          document.getElementById('summaryAlphaCount').textContent = (alphaData.picks || []).length;
+        }
+
+        // Long term count
+        if (responses[3].status === 'fulfilled' && responses[3].value.ok) {
+          const ltData = await responses[3].value.json();
+          const stocks = ltData.stocks || [];
+          const buys = stocks.filter(s => s.fundamentalScore >= 6.5).length;
+          document.getElementById('summaryLtCount').textContent = buys;
+        }
+
+        tabLoaded.overview = true;
+      } catch (err) {
+        console.error('Overview load error:', err);
+      }
+    }
+
+    function renderSentimentGauge(data) {
+      const score = data.score || 0;
+      const label = data.label || 'Neutral';
+
+      // Update arc (total arc length ~ 283 for this path)
+      const arcLength = 283;
+      const filled = (score / 100) * arcLength;
+      document.getElementById('gaugeArc').setAttribute('stroke-dasharray', `${filled} ${arcLength}`);
+
+      // Update needle rotation: -90 (score=0) to +90 (score=100)
+      const angle = -90 + (score / 100) * 180;
+      document.getElementById('gaugeNeedle').setAttribute('transform', `rotate(${angle} 110 120)`);
+
+      // Score color
+      const color = sentimentColor(score);
+      document.getElementById('sentimentScore').textContent = score;
+      document.getElementById('sentimentScore').style.color = color;
+      document.getElementById('sentimentLabel').textContent = label;
+      document.getElementById('sentimentLabel').style.color = color;
+    }
+
+    function sentimentColor(score) {
+      if (score >= 75) return 'var(--green)';
+      if (score >= 55) return '#4CAF50';
+      if (score >= 45) return 'var(--yellow)';
+      if (score >= 25) return 'var(--orange)';
+      return 'var(--red)';
+    }
+
+    function renderIndices(indices) {
+      const cards = document.getElementById('indexCards');
+      const defaultIndices = [
+        { symbol: 'SPY', name: 'S&P 500' },
+        { symbol: 'QQQ', name: 'Nasdaq 100' },
+        { symbol: 'DIA', name: 'Dow Jones' },
+        { symbol: 'IWM', name: 'Russell 2000' }
+      ];
+
+      cards.innerHTML = defaultIndices.map(def => {
+        const match = indices.find(i => i.symbol === def.symbol);
+        const price = match ? '$' + Number(match.price).toFixed(2) : '--';
+        const change = match ? match.change : null;
+        const changeText = change !== null ? (change >= 0 ? '+' : '') + Number(change).toFixed(2) + '%' : '--';
+        const changeClass = change !== null ? (change >= 0 ? 'change-positive' : 'change-negative') : '';
+        return `
+          <div class="index-card">
+            <div class="index-symbol">${def.symbol}</div>
+            <div class="index-name">${def.name}</div>
+            <div class="index-price">${price}</div>
+            <div class="index-change ${changeClass}">${changeText}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderSectors(sectors) {
+      const grid = document.getElementById('sectorGrid');
+      if (!sectors.length) {
+        grid.innerHTML = '<div class="sector-card" style="background:var(--bg-card)"><div class="sector-name">No sector data</div><div class="sector-change" style="color:var(--text-dim)">--</div></div>';
+        return;
+      }
+      grid.innerHTML = sectors.map(s => {
+        const change = Number(s.change);
+        const intensity = Math.min(Math.abs(change) / 3, 1);
+        const bg = change >= 0
+          ? `rgba(0,227,150,${0.08 + intensity * 0.2})`
+          : `rgba(255,69,96,${0.08 + intensity * 0.2})`;
+        const color = change >= 0 ? 'var(--green)' : 'var(--red)';
+        const changeText = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+        return `
+          <div class="sector-card" style="background:${bg}">
+            <div class="sector-name">${esc(s.name)}</div>
+            <div class="sector-change" style="color:${color}">${changeText}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ═══════ TECHNICAL ═══════
+
+    async function loadTechnical() {
       try {
         const [picksRes, statsRes] = await Promise.all([
           fetch(API_BASE + '/api/picks'),
-          fetch(API_BASE + '/api/stats'),
+          fetch(API_BASE + '/api/stats')
         ]);
         const picksData = await picksRes.json();
         const statsData = await statsRes.json();
 
-        document.getElementById('picksLoading').style.display = 'none';
+        document.getElementById('techLoading').style.display = 'none';
 
-        // Update stats
         const picks = picksData.picks || [];
-        document.getElementById('statPicksCount').textContent = picks.length;
+        document.getElementById('techPicksCount').textContent = picks.length;
 
         const avgScore = picks.length > 0
           ? (picks.reduce((s, p) => s + p.composite_score, 0) / picks.length).toFixed(1)
-          : '—';
-        document.getElementById('statAvgScore').textContent = avgScore;
+          : '--';
+        document.getElementById('techAvgScore').textContent = avgScore;
 
         const strongBuy = picks.filter(p => p.composite_score >= 6).length;
-        document.getElementById('statStrongBuy').textContent = strongBuy;
+        document.getElementById('techStrongBuy').textContent = strongBuy;
 
         const perf = statsData.performance || {};
-        document.getElementById('statWinRate').textContent =
-          perf.total_trades > 0 ? perf.win_rate + '%' : '—';
-        document.getElementById('statTradeCount').textContent =
+        document.getElementById('techWinRate').textContent =
+          perf.total_trades > 0 ? perf.win_rate + '%' : '--';
+        document.getElementById('techTradeCount').textContent =
           perf.total_trades > 0 ? `${perf.total_trades} closed trades` : '';
-        document.getElementById('statAvgReturn').textContent =
-          perf.total_trades > 0 ? formatReturn(perf.avg_return) : '—';
-        document.getElementById('statAvgReturn').className =
-          'stat-value ' + (perf.avg_return >= 0 ? 'change-positive' : 'change-negative');
 
-        // Update last scan time
-        if (picks.length > 0) {
-          const latest = picks[0].updated_at;
-          document.getElementById('lastUpdate').textContent = 'Last scan: ' + formatTime(latest);
-        }
+        const avgRetEl = document.getElementById('techAvgReturn');
+        avgRetEl.textContent = perf.total_trades > 0 ? formatReturn(perf.avg_return) : '--';
+        avgRetEl.className = 'stat-value ' + (perf.avg_return >= 0 ? 'change-positive' : 'change-negative');
 
-        // Render picks table
         if (picks.length === 0) {
-          document.getElementById('picksEmpty').style.display = 'block';
-          document.getElementById('picksTable').style.display = 'none';
+          document.getElementById('techEmpty').style.display = 'block';
+          document.getElementById('techTable').style.display = 'none';
           return;
         }
 
-        document.getElementById('picksTable').style.display = 'table';
-        const tbody = document.getElementById('picksBody');
-        tbody.innerHTML = picks.map(p => `
-          <tr>
+        document.getElementById('techTable').style.display = 'table';
+        document.getElementById('techBody').innerHTML = picks.map(p => `
+          <tr class="clickable-row" onclick="viewChart('${esc(p.symbol)}')">
             <td>
               <div class="symbol-cell">
                 <span class="symbol-ticker">${esc(p.symbol)}</span>
@@ -545,15 +1083,15 @@ rh.logout()</div>
             <td><span class="signal-badge ${signalClass(p.overall_signal)}">${esc(p.overall_signal)}</span></td>
             <td>
               <div class="score-bar-wrap">
-                <span class="score-val" style="color:${scoreColor(p.composite_score)}">${p.composite_score.toFixed(1)}</span>
+                <span class="score-val" style="color:${taScoreColor(p.composite_score)}">${p.composite_score.toFixed(1)}</span>
                 <div class="score-bar">
-                  <div class="score-bar-fill" style="width:${scoreWidth(p.composite_score)}%;background:${scoreColor(p.composite_score)}"></div>
+                  <div class="score-bar-fill" style="width:${taScoreWidth(p.composite_score)}%;background:${taScoreColor(p.composite_score)}"></div>
                 </div>
               </div>
             </td>
-            <td class="price-cell">$${p.price.toFixed(2)}</td>
+            <td class="price-cell">$${Number(p.price).toFixed(2)}</td>
             <td class="${p.daily_change >= 0 ? 'change-positive' : 'change-negative'}" style="font-family:'JetBrains Mono',monospace;font-weight:600">
-              ${p.daily_change >= 0 ? '+' : ''}${p.daily_change.toFixed(2)}%
+              ${p.daily_change >= 0 ? '+' : ''}${Number(p.daily_change).toFixed(2)}%
             </td>
             <td class="hide-mobile">
               <div class="indicator-pills">
@@ -569,123 +1107,200 @@ rh.logout()</div>
             <td class="hide-mobile" style="color:var(--text-dim);font-size:0.78rem">${formatTime(p.updated_at)}</td>
           </tr>
         `).join('');
-
-        // Update market status
-        updateMarketStatus(picksData);
-
       } catch (err) {
-        document.getElementById('picksLoading').innerHTML =
+        document.getElementById('techLoading').innerHTML =
           '<div style="color:var(--red)">Failed to load picks. Is the server running?</div>';
-        console.error('Load error:', err);
+        console.error('Technical load error:', err);
       }
     }
 
-    // ── Load History ──
-    async function loadHistory() {
+    // ═══════ ALPHA ═══════
+
+    async function loadAlpha() {
       try {
-        const [histRes, statsRes] = await Promise.all([
-          fetch(API_BASE + '/api/history?limit=200'),
-          fetch(API_BASE + '/api/stats'),
-        ]);
-        const histData = await histRes.json();
-        const statsData = await statsRes.json();
+        const res = await fetch(API_BASE + '/api/alpha');
+        const data = await res.json();
 
-        document.getElementById('historyLoading').style.display = 'none';
+        document.getElementById('alphaLoading').style.display = 'none';
 
-        const perf = statsData.performance || {};
-        const statsHtml = `
-          <div class="stat-card">
-            <div class="stat-label">Total Trades</div>
-            <div class="stat-value">${perf.total_trades || 0}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Win Rate</div>
-            <div class="stat-value" style="color:${perf.win_rate >= 50 ? 'var(--green)' : 'var(--red)'}">
-              ${perf.total_trades > 0 ? perf.win_rate + '%' : '—'}
-            </div>
-            <div class="stat-sub">${perf.winners || 0}W / ${perf.losers || 0}L</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Avg Return</div>
-            <div class="stat-value ${perf.avg_return >= 0 ? 'change-positive' : 'change-negative'}">
-              ${perf.total_trades > 0 ? formatReturn(perf.avg_return) : '—'}
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Best Trade</div>
-            <div class="stat-value change-positive">${perf.best_trade ? formatReturn(perf.best_trade) : '—'}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Worst Trade</div>
-            <div class="stat-value change-negative">${perf.worst_trade ? formatReturn(perf.worst_trade) : '—'}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Active Positions</div>
-            <div class="stat-value" style="color:var(--blue)">${statsData.active_positions || 0}</div>
-          </div>
-        `;
-        document.getElementById('historyStats').innerHTML = statsHtml;
+        const picks = data.picks || [];
+        document.getElementById('alphaTotal').textContent = picks.length;
 
-        const history = histData.history || [];
-        if (history.length === 0) {
-          document.getElementById('historyEmpty').style.display = 'block';
-          document.getElementById('historyTable').style.display = 'none';
+        const sTier = picks.filter(p => p.tier === 'S').length;
+        document.getElementById('alphaSTier').textContent = sTier;
+
+        const avgConv = picks.length > 0
+          ? (picks.reduce((s, p) => s + (p.conviction || 0), 0) / picks.length).toFixed(0)
+          : '--';
+        document.getElementById('alphaAvgConviction').textContent = avgConv;
+
+        if (picks.length === 0) {
+          document.getElementById('alphaEmpty').style.display = 'block';
+          document.getElementById('alphaTable').style.display = 'none';
           return;
         }
 
-        document.getElementById('historyTable').style.display = 'table';
-        const tbody = document.getElementById('historyBody');
-        tbody.innerHTML = history.map(h => {
-          const isActive = h.status === 'active';
-          const rowClass = isActive ? '' : (h.return_pct >= 0 ? 'trade-row-win' : 'trade-row-loss');
+        document.getElementById('alphaTable').style.display = 'table';
+        document.getElementById('alphaBody').innerHTML = picks.map(p => {
+          const tierClass = 'tier-' + (p.tier || 'C');
+          const conviction = p.conviction || 0;
+          const convColor = conviction >= 80 ? 'var(--green)' : conviction >= 60 ? 'var(--blue)' : conviction >= 40 ? 'var(--orange)' : 'var(--red)';
+          const sources = (p.sources || []).map(src => {
+            const cls = src === 'darkpool' ? 'source-darkpool' : src === 'insider' ? 'source-insider' : src === 'options' ? 'source-options' : 'source-default';
+            return `<span class="source-pill ${cls}">${esc(src)}</span>`;
+          }).join('');
+          const change = p.dailyChange || 0;
+
           return `
-            <tr class="${rowClass}">
+            <tr class="clickable-row" onclick="viewChart('${esc(p.symbol)}')">
               <td>
                 <div class="symbol-cell">
-                  <span class="symbol-ticker">${esc(h.symbol)}</span>
-                  <span class="symbol-name">${esc(h.name)}</span>
+                  <span class="symbol-ticker">${esc(p.symbol)}</span>
+                  <span class="symbol-name">${esc(p.name)}</span>
                 </div>
               </td>
-              <td><span class="signal-badge ${signalClass(h.overall_signal)}">${esc(h.overall_signal)}</span></td>
-              <td class="price-cell">$${(h.entry_price || 0).toFixed(2)}</td>
-              <td class="price-cell">${isActive ? '—' : '$' + (h.exit_price || 0).toFixed(2)}</td>
-              <td style="font-family:'JetBrains Mono',monospace;font-weight:700" class="${!isActive ? (h.return_pct >= 0 ? 'change-positive' : 'change-negative') : ''}">
-                ${isActive ? '—' : formatReturn(h.return_pct)}
+              <td><span class="tier-badge ${tierClass}">${esc(p.tier || 'C')}</span></td>
+              <td>
+                <div class="conviction-bar-wrap">
+                  <span class="conviction-val" style="color:${convColor}">${conviction}</span>
+                  <div class="conviction-bar">
+                    <div class="conviction-bar-fill" style="width:${conviction}%;background:${convColor}"></div>
+                  </div>
+                </div>
               </td>
-              <td class="change-positive" style="font-family:'JetBrains Mono',monospace">
-                ${h.peak_return_pct > 0 ? '+' + h.peak_return_pct.toFixed(1) + '%' : '—'}
-              </td>
-              <td class="hide-mobile">
-                <span class="signal-badge ${isActive ? 'signal-buy' : 'signal-neutral'}">
-                  ${isActive ? 'Active' : 'Closed'}
-                </span>
-              </td>
-              <td class="hide-mobile" style="color:var(--text-dim);font-size:0.78rem">
-                ${formatDate(h.entry_date)}
+              <td class="hide-mobile">${sources || '<span style="color:var(--text-dim)">--</span>'}</td>
+              <td class="price-cell">$${Number(p.price).toFixed(2)}</td>
+              <td class="${change >= 0 ? 'change-positive' : 'change-negative'}" style="font-family:'JetBrains Mono',monospace;font-weight:600">
+                ${change >= 0 ? '+' : ''}${Number(change).toFixed(2)}%
               </td>
             </tr>
           `;
         }).join('');
-
       } catch (err) {
-        document.getElementById('historyLoading').innerHTML =
-          '<div style="color:var(--red)">Failed to load history.</div>';
+        document.getElementById('alphaLoading').innerHTML =
+          '<div style="color:var(--red)">Failed to load alpha signals.</div>';
+        console.error('Alpha load error:', err);
       }
     }
 
-    // ── Helpers ──
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    // ═══════ LONG TERM ═══════
+
+    async function loadLongTerm() {
+      try {
+        const res = await fetch(API_BASE + '/api/fundamentals');
+        const data = await res.json();
+
+        document.getElementById('ltLoading').style.display = 'none';
+
+        const stocks = data.stocks || [];
+
+        if (stocks.length === 0) {
+          document.getElementById('ltEmpty').style.display = 'block';
+          document.getElementById('ltTable').style.display = 'none';
+          return;
+        }
+
+        document.getElementById('ltTable').style.display = 'table';
+        document.getElementById('ltBody').innerHTML = stocks.map(s => {
+          const score = s.fundamentalScore || 0;
+          const scoreCol = fundScoreColor(score);
+          const labelClass = fundLabelClass(s.overallLabel);
+          const ret1y = s.return1Y;
+
+          return `
+            <tr class="clickable-row" onclick="viewChart('${esc(s.symbol)}')">
+              <td>
+                <div class="symbol-cell">
+                  <span class="symbol-ticker">${esc(s.symbol)}</span>
+                  <span class="symbol-name">${esc(s.name)}</span>
+                </div>
+              </td>
+              <td style="font-size:0.8rem;color:var(--text-muted)">${esc(s.sector || '--')}</td>
+              <td>
+                <div>
+                  <span class="fund-score" style="color:${scoreCol}">${score.toFixed(1)}</span>
+                  <div class="fund-score-bar">
+                    <div class="fund-score-fill" style="width:${score * 10}%;background:${scoreCol}"></div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="signal-badge ${labelClass}">${esc(s.overallLabel || '--')}</span></td>
+              <td class="price-cell">${s.pe != null ? Number(s.pe).toFixed(1) : '--'}</td>
+              <td class="hide-mobile price-cell">${s.profitMargin != null ? Number(s.profitMargin).toFixed(1) + '%' : '--'}</td>
+              <td class="hide-mobile price-cell">${s.returnOnEquity != null ? Number(s.returnOnEquity).toFixed(1) + '%' : '--'}</td>
+              <td class="hide-mobile price-cell">${s.dividendYield != null ? Number(s.dividendYield).toFixed(2) + '%' : '--'}</td>
+              <td class="${ret1y != null ? (ret1y >= 0 ? 'change-positive' : 'change-negative') : ''}" style="font-family:'JetBrains Mono',monospace;font-weight:600">
+                ${ret1y != null ? (ret1y >= 0 ? '+' : '') + Number(ret1y).toFixed(1) + '%' : '--'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        document.getElementById('ltLoading').innerHTML =
+          '<div style="color:var(--red)">Failed to load fundamental data.</div>';
+        console.error('Long term load error:', err);
+      }
+    }
+
+    // ═══════ CHARTS ═══════
+
+    let currentChartSymbol = 'AAPL';
+
+    function loadChart(symbol) {
+      symbol = (symbol || 'AAPL').toUpperCase().trim();
+      if (!symbol) return;
+      currentChartSymbol = symbol;
+
+      const iframe = document.getElementById('tvChart');
+      const url = `https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${encodeURIComponent(symbol)}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=0a0e17&studies=MASimple%40tv-basicstudies&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&width=100%25&height=500`;
+      iframe.src = url;
+
+      // Update active quick pick button
+      document.querySelectorAll('.quick-pick').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.symbol === symbol);
+      });
+
+      // Update search input
+      document.getElementById('chartSearchInput').value = symbol;
+    }
+
+    function viewChart(symbol) {
+      switchTab('charts');
+      loadChart(symbol);
+      tabLoaded.charts = true;
+    }
+
+    // Quick pick buttons
+    document.querySelectorAll('.quick-pick').forEach(btn => {
+      btn.addEventListener('click', () => loadChart(btn.dataset.symbol));
+    });
+
+    // Search input
+    document.getElementById('chartSearchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        loadChart(e.target.value);
+      }
+    });
+
+    // ═══════ HELPERS ═══════
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
 
     function signalClass(signal) {
       const s = (signal || '').toLowerCase();
       if (s === 'strong buy') return 'signal-strong-buy';
       if (s === 'buy') return 'signal-buy';
+      if (s === 'hold') return 'signal-hold';
       if (s === 'sell') return 'signal-sell';
       if (s === 'strong sell') return 'signal-strong-sell';
       return 'signal-neutral';
     }
 
-    function scoreColor(score) {
+    function taScoreColor(score) {
       if (score >= 6) return 'var(--green)';
       if (score >= 2) return '#4CAF50';
       if (score >= -2) return 'var(--text-muted)';
@@ -693,8 +1308,26 @@ rh.logout()</div>
       return 'var(--red)';
     }
 
-    function scoreWidth(score) {
+    function taScoreWidth(score) {
       return Math.max(5, ((score + 10) / 20) * 100);
+    }
+
+    function fundScoreColor(score) {
+      if (score >= 8) return 'var(--green)';
+      if (score >= 6.5) return 'var(--blue)';
+      if (score >= 5.5) return 'var(--yellow)';
+      if (score >= 4) return 'var(--orange)';
+      return 'var(--red)';
+    }
+
+    function fundLabelClass(label) {
+      const l = (label || '').toLowerCase();
+      if (l === 'strong buy') return 'label-strong-buy';
+      if (l === 'buy') return 'label-buy';
+      if (l === 'hold') return 'label-hold';
+      if (l === 'weak') return 'label-weak';
+      if (l === 'avoid') return 'label-avoid';
+      return 'signal-neutral';
     }
 
     function indicatorPill(abbr, score, label) {
@@ -704,21 +1337,15 @@ rh.logout()</div>
     }
 
     function formatReturn(val) {
-      if (val == null) return '—';
+      if (val == null) return '--';
       const sign = val >= 0 ? '+' : '';
-      return sign + val.toFixed(2) + '%';
+      return sign + Number(val).toFixed(2) + '%';
     }
 
     function formatTime(dt) {
       if (!dt) return '';
       const d = new Date(dt + (dt.includes('Z') || dt.includes('+') ? '' : 'Z'));
       return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    }
-
-    function formatDate(dt) {
-      if (!dt) return '';
-      const d = new Date(dt + (dt.includes('Z') || dt.includes('+') ? '' : 'Z'));
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
     function updateMarketStatus() {
@@ -733,11 +1360,29 @@ rh.logout()</div>
       status.textContent = open ? 'Market Open' : 'Market Closed';
     }
 
-    // ── Init ──
-    loadPicks();
+    // ═══════ AUTO-REFRESH ═══════
+
+    function refreshActiveTab() {
+      const activeTab = document.querySelector('.nav-tab.active');
+      if (!activeTab) return;
+      const tab = activeTab.dataset.tab;
+      switch (tab) {
+        case 'overview': loadOverview(); break;
+        case 'technical': loadTechnical(); break;
+        case 'alpha': loadAlpha(); break;
+        case 'longterm': loadLongTerm(); break;
+      }
+    }
+
+    // ═══════ INIT ═══════
+
+    loadOverview();
     updateMarketStatus();
-    setInterval(loadPicks, 60000);       // Refresh every minute
-    setInterval(updateMarketStatus, 30000); // Update market status every 30s
+
+    // Refresh data every 60 seconds
+    refreshInterval = setInterval(refreshActiveTab, 60000);
+    // Update market status every 30 seconds
+    setInterval(updateMarketStatus, 30000);
   </script>
 </body>
 </html>
