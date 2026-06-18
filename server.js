@@ -9,6 +9,8 @@ const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
 
+const { runScan } = require('./scanner');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || 'sp-dev-key-change-me';
@@ -244,6 +246,35 @@ app.post('/api/picks/:symbol/update-price', requireApiKey, (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
+// SCANNER — runs TA on server, no app needed
+// ═══════════════════════════════════════════════════
+
+// GET /api/scan — trigger a scan manually
+app.get('/api/scan', requireApiKey, async (req, res) => {
+  try {
+    const result = await runScan(
+      () => ({ picks, history, scanLogs, nextId }),
+      persist
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+let scanning = false;
+async function autoScan() {
+  if (scanning) return;
+  scanning = true;
+  try {
+    await runScan(() => ({ picks, history, scanLogs, nextId }), persist);
+  } catch (err) {
+    console.error('[Scanner] Error:', err.message);
+  }
+  scanning = false;
+}
+
+// ═══════════════════════════════════════════════════
 // Serve frontend
 // ═══════════════════════════════════════════════════
 app.get('*', (req, res) => {
@@ -267,4 +298,10 @@ app.listen(PORT, () => {
   console.log(`  Dashboard:  http://localhost:${PORT}`);
   console.log(`  Signals:    http://localhost:${PORT}/api/signals`);
   console.log(`  Picks: ${picks.length} | History: ${history.length}\n`);
+
+  // Run first scan 5 seconds after startup
+  setTimeout(autoScan, 5000);
+
+  // Re-scan every 15 minutes
+  setInterval(autoScan, 15 * 60 * 1000);
 });
