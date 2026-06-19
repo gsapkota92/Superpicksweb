@@ -284,17 +284,14 @@ app.post('/api/picks/:symbol/update-price', requireApiKey, (req, res) => {
 // SCANNER — runs TA on server, no app needed
 // ═══════════════════════════════════════════════════
 
-// GET /api/scan — trigger a scan manually
+// GET /api/scan — DISABLED. Super Picks come from the mobile app (POST /api/picks).
+// Running the web's own scanner here would overwrite the app's pushed picks with a
+// different universe/threshold, making the website disagree with the app.
 app.get('/api/scan', requireApiKey, async (req, res) => {
-  try {
-    const result = await runScan(
-      () => ({ picks, history, scanLogs, nextId }),
-      persist
-    );
-    res.json({ success: true, ...result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.status(409).json({
+    success: false,
+    error: 'Web scanner disabled. Super Picks are sourced from the mobile app via POST /api/picks.',
+  });
 });
 
 let scanning = false;
@@ -304,7 +301,12 @@ async function autoScan() {
   try {
     // Run all scanners in sequence (to avoid overloading Yahoo)
     console.log('\n[AutoScan] Starting full scan...');
-    await runScan(() => ({ picks, history, scanLogs, nextId }), persist);
+    // NOTE: Super Picks are the source of truth from the mobile app (POST /api/picks).
+    // The web's own runScan() uses a different universe (hardcoded 107 symbols) and a
+    // looser threshold (score >= 2 vs the app's >= 6), so running it here would OVERWRITE
+    // the app's pushed picks every 15 min and cause the website to disagree with the app.
+    // Intentionally disabled. Alpha Engine + Fundamentals are separate features and still run.
+    // await runScan(() => ({ picks, history, scanLogs, nextId }), persist);
     await runAlphaScan(() => ({ alpha, alphaHistory, nextId }), persist);
     await runFundamentalsScan(() => ({ fundamentals, nextId }), persist);
     console.log('[AutoScan] All scans complete.\n');
