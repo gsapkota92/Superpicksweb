@@ -13,6 +13,7 @@ const { runScan } = require('./scanner');
 const { runAlphaScan } = require('./alpha-scanner');
 const { runFundamentalsScan } = require('./fundamentals-scanner');
 const { computeSentiment } = require('./sentiment');
+const screener = require('./engines/screenerService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -142,6 +143,43 @@ app.get('/api/sentiment', async (req, res) => {
   try {
     const data = await computeSentiment();
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Screener (ported from the app's screenerService) ──
+const screenerCache = {}; // { type: { at, data } }
+const SCREENER_TTL = 5 * 60 * 1000; // 5 min — screener hits Unusual Whales
+
+// GET /api/screener?type=stocks|options|analysts
+app.get('/api/screener', async (req, res) => {
+  const type = (req.query.type || 'stocks').toLowerCase();
+  const fnMap = {
+    stocks: screener.screenStocks,
+    options: screener.screenOptions,
+    analysts: screener.screenAnalysts,
+  };
+  const fn = fnMap[type];
+  if (!fn) return res.status(400).json({ error: 'type must be stocks, options, or analysts' });
+  try {
+    const cached = screenerCache[type];
+    if (cached && Date.now() - cached.at < SCREENER_TTL) {
+      return res.json({ timestamp: new Date(cached.at).toISOString(), cached: true, type, count: cached.data.length, results: cached.data });
+    }
+    const data = (await fn()) || [];
+    screenerCache[type] = { at: Date.now(), data };
+    res.json({ timestamp: new Date().toISOString(), cached: false, type, count: data.length, results: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/movers — Unusual Whales market movers (gainers/losers/active)
+app.get('/api/movers', async (req, res) => {
+  try {
+    const data = await screener.getUWMovers();
+    res.json({ timestamp: new Date().toISOString(), movers: data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -284,14 +322,17 @@ app.post('/api/picks/:symbol/update-price', requireApiKey, (req, res) => {
 // SCANNER — runs TA on server, no app needed
 // ═══════════════════════════════════════════════════
 
-// GET /api/scan — DISABLED. Super Picks come from the mobile app (POST /api/picks).
-// Running the web's own scanner here would overwrite the app's pushed picks with a
-// different universe/threshold, making the website disagree with the app.
+// GET /api/scan — trigger a full TA scan manually (Granny Shots universe, score>=6)
 app.get('/api/scan', requireApiKey, async (req, res) => {
-  res.status(409).json({
-    success: false,
-    error: 'Web scanner disabled. Super Picks are sourced from the mobile app via POST /api/picks.',
-  });
+  try {
+    const result = await runScan(
+      () => ({ picks, history, scanLogs, nextId }),
+      persist
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 let scanning = false;
@@ -301,12 +342,10 @@ async function autoScan() {
   try {
     // Run all scanners in sequence (to avoid overloading Yahoo)
     console.log('\n[AutoScan] Starting full scan...');
-    // NOTE: Super Picks are the source of truth from the mobile app (POST /api/picks).
-    // The web's own runScan() uses a different universe (hardcoded 107 symbols) and a
-    // looser threshold (score >= 2 vs the app's >= 6), so running it here would OVERWRITE
-    // the app's pushed picks every 15 min and cause the website to disagree with the app.
-    // Intentionally disabled. Alpha Engine + Fundamentals are separate features and still run.
-    // await runScan(() => ({ picks, history, scanLogs, nextId }), persist);
+    // Super Picks: web computes them itself using the app's exact TA engine over the
+    // Granny Shots universe at score >= 6 (./engines). The app's POST /api/picks
+    // remains available as an optional override/fallback.
+    await runScan(() => ({ picks, history, scanLogs, nextId }), persist);
     await runAlphaScan(() => ({ alpha, alphaHistory, nextId }), persist);
     await runFundamentalsScan(() => ({ fundamentals, nextId }), persist);
     console.log('[AutoScan] All scans complete.\n');

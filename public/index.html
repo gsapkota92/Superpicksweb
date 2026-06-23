@@ -456,6 +456,7 @@
     <button class="nav-tab" data-tab="technical">Technical</button>
     <button class="nav-tab" data-tab="alpha">Alpha</button>
     <button class="nav-tab" data-tab="longterm">Long Term</button>
+    <button class="nav-tab" data-tab="screener">Screener</button>
     <button class="nav-tab" data-tab="charts">Charts</button>
     <button class="nav-tab" data-tab="api">API</button>
   </nav>
@@ -575,7 +576,7 @@
     <div class="container">
       <div class="stats-row" id="alphaStats">
         <div class="stat-card"><div class="stat-label">Total Signals</div><div class="stat-value" id="alphaTotal">--</div></div>
-        <div class="stat-card"><div class="stat-label">S-Tier</div><div class="stat-value" id="alphaSTier" style="color:var(--gold)">--</div></div>
+        <div class="stat-card"><div class="stat-label">Fire Tier</div><div class="stat-value" id="alphaSTier" style="color:var(--gold)">--</div></div>
         <div class="stat-card"><div class="stat-label">Avg Conviction</div><div class="stat-value" id="alphaAvgConviction">--</div></div>
       </div>
 
@@ -630,6 +631,35 @@
           <div class="empty-icon">&#x1F4CA;</div>
           <div class="empty-title">No fundamental data</div>
           <p>Fundamental scores will appear once data is available.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SCREENER TAB ═══════ -->
+  <div class="tab-content" id="tab-screener">
+    <div class="container">
+      <div class="section-title">Unusual Whales Screener</div>
+      <div class="chart-controls" style="flex-wrap:wrap;gap:8px">
+        <div class="quick-picks" id="screenerTypes">
+          <button class="quick-pick active" data-stype="stocks">Stocks</button>
+          <button class="quick-pick" data-stype="options">Options</button>
+          <button class="quick-pick" data-stype="analysts">Analysts</button>
+        </div>
+        <input type="text" class="chart-search" id="screenerSearch" placeholder="Filter by symbol…" spellcheck="false" autocomplete="off" style="max-width:220px">
+        <button class="quick-pick" id="screenerRefresh">↻ Refresh</button>
+      </div>
+      <div class="picks-table-wrap">
+        <div id="screenerLoading" class="loading"><div class="spinner"></div>Loading screener…</div>
+        <div id="screenerMeta" style="padding:8px 4px;color:var(--text-dim);font-size:0.85rem;display:none"></div>
+        <table class="picks-table" id="screenerTable" style="display:none">
+          <thead><tr id="screenerHead"></tr></thead>
+          <tbody id="screenerBody"></tbody>
+        </table>
+        <div id="screenerEmpty" class="empty-state" style="display:none">
+          <div class="empty-icon">&#x1F50E;</div>
+          <div class="empty-title">No results</div>
+          <p>Try a different screener type or refresh.</p>
         </div>
       </div>
     </div>
@@ -892,6 +922,7 @@ rh.logout()</div>
           case 'technical': loadTechnical(); break;
           case 'alpha': loadAlpha(); break;
           case 'longterm': loadLongTerm(); break;
+          case 'screener': loadScreener('stocks'); break;
           case 'charts': loadChart('AAPL'); break;
         }
         tabLoaded[tabName] = true;
@@ -1126,7 +1157,7 @@ rh.logout()</div>
         const picks = data.picks || [];
         document.getElementById('alphaTotal').textContent = picks.length;
 
-        const sTier = picks.filter(p => p.tier === 'S').length;
+        const sTier = picks.filter(p => p.tier === 'FIRE').length;
         document.getElementById('alphaSTier').textContent = sTier;
 
         const avgConv = picks.length > 0
@@ -1182,6 +1213,98 @@ rh.logout()</div>
         console.error('Alpha load error:', err);
       }
     }
+
+    // ═══════ SCREENER ═══════
+    let screenerType = 'stocks';
+    let screenerRaw = [];
+
+    function scNum(v){ const n = Number(v); return isFinite(n) ? n.toFixed(2) : '--'; }
+    function scFmtNum(v){ const n = Number(v); if(!isFinite(n)||n===0) return '--'; if(n>=1e9) return (n/1e9).toFixed(1)+'B'; if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(Math.round(n)); }
+    function scFmtCap(v){ const n = Number(v); if(!isFinite(n)||n===0) return '--'; if(n>=1e12) return '$'+(n/1e12).toFixed(2)+'T'; if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; return '$'+n.toFixed(0); }
+    function scChange(v){ const n = Number(v); if(!isFinite(n)) return '--'; const cls = n>=0?'change-positive':'change-negative'; return `<span class="${cls}" style="font-family:'JetBrains Mono',monospace;font-weight:600">${n>=0?'+':''}${n.toFixed(2)}%</span>`; }
+    function scSym(r){ return `<div class="symbol-cell"><span class="symbol-ticker">${esc(r.symbol||'')}</span>${r.name?`<span class="symbol-name">${esc(r.name)}</span>`:''}</div>`; }
+
+    const SCREENER_COLS = {
+      stocks: [
+        ['Symbol', r => scSym(r)],
+        ['Price', r => '$' + scNum(r.price)],
+        ['Change', r => scChange(r.change)],
+        ['Volume', r => scFmtNum(r.volume), 'hide-mobile'],
+        ['Mkt Cap', r => scFmtCap(r.marketCap), 'hide-mobile'],
+        ['Sector', r => esc(r.sector || '--'), 'hide-mobile'],
+        ['P/E', r => r.pe ? scNum(r.pe) : '--', 'hide-mobile'],
+        ['IV Rank', r => (r.ivRank != null ? scNum(r.ivRank) : '--'), 'hide-mobile'],
+      ],
+      options: [
+        ['Symbol', r => scSym(r)],
+        ['Type', r => esc(String(r.type || '').toUpperCase())],
+        ['Strike', r => r.strike ? '$' + scNum(r.strike) : '--'],
+        ['Expiry', r => esc(r.expiry || '--'), 'hide-mobile'],
+        ['Premium', r => scFmtCap(r.premium)],
+        ['Volume', r => scFmtNum(r.volume), 'hide-mobile'],
+        ['OI', r => scFmtNum(r.openInterest), 'hide-mobile'],
+        ['IV', r => (r.iv != null ? scNum(r.iv) : '--'), 'hide-mobile'],
+        ['Sentiment', r => esc(r.sentiment || '--')],
+      ],
+      analysts: [
+        ['Symbol', r => scSym(r)],
+        ['Rating', r => esc(r.rating || '--')],
+        ['Target', r => r.priceTarget ? '$' + scNum(r.priceTarget) : '--'],
+        ['Current', r => r.currentPrice ? '$' + scNum(r.currentPrice) : '--'],
+        ['Upside', r => scChange(r.upside)],
+        ['Analysts', r => (r.numAnalysts != null ? r.numAnalysts : '--'), 'hide-mobile'],
+      ],
+    };
+
+    async function loadScreener(type) {
+      screenerType = type;
+      document.querySelectorAll('#screenerTypes .quick-pick').forEach(b => b.classList.toggle('active', b.dataset.stype === type));
+      const loading = document.getElementById('screenerLoading');
+      loading.style.display = 'flex';
+      loading.innerHTML = '<div class="spinner"></div>Loading ' + type + '…';
+      document.getElementById('screenerTable').style.display = 'none';
+      document.getElementById('screenerEmpty').style.display = 'none';
+      document.getElementById('screenerMeta').style.display = 'none';
+      try {
+        const res = await fetch(API_BASE + '/api/screener?type=' + encodeURIComponent(type));
+        const data = await res.json();
+        screenerRaw = data.results || [];
+        const meta = document.getElementById('screenerMeta');
+        meta.style.display = 'block';
+        meta.textContent = `${data.count || 0} results${data.cached ? ' (cached)' : ''} · updated ${new Date(data.timestamp).toLocaleTimeString()}`;
+        renderScreener();
+      } catch (err) {
+        loading.innerHTML = '<div style="color:var(--red)">Failed to load screener.</div>';
+        console.error('Screener load error:', err);
+      }
+    }
+
+    function renderScreener() {
+      const cols = SCREENER_COLS[screenerType] || SCREENER_COLS.stocks;
+      const q = (document.getElementById('screenerSearch').value || '').trim().toUpperCase();
+      let rows = screenerRaw;
+      if (q) rows = rows.filter(r => (r.symbol || '').toUpperCase().includes(q));
+
+      document.getElementById('screenerLoading').style.display = 'none';
+      if (!rows.length) {
+        document.getElementById('screenerTable').style.display = 'none';
+        document.getElementById('screenerEmpty').style.display = 'block';
+        return;
+      }
+      document.getElementById('screenerEmpty').style.display = 'none';
+      document.getElementById('screenerTable').style.display = 'table';
+      document.getElementById('screenerHead').innerHTML = cols.map(c => `<th class="${c[2] || ''}">${c[0]}</th>`).join('');
+      document.getElementById('screenerBody').innerHTML = rows.map(r => {
+        const tds = cols.map(c => `<td class="${c[2] || ''}">${c[1](r)}</td>`).join('');
+        return `<tr class="clickable-row" onclick="viewChart('${esc(r.symbol || '')}')">${tds}</tr>`;
+      }).join('');
+    }
+
+    document.querySelectorAll('#screenerTypes .quick-pick').forEach(b => {
+      b.addEventListener('click', () => loadScreener(b.dataset.stype));
+    });
+    document.getElementById('screenerSearch').addEventListener('input', renderScreener);
+    document.getElementById('screenerRefresh').addEventListener('click', () => loadScreener(screenerType));
 
     // ═══════ LONG TERM ═══════
 
