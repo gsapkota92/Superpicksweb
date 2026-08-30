@@ -10,9 +10,13 @@ const UW_CONFIG = {
   BASE_URL: process.env.UW_BASE_URL || 'https://api.unusualwhales.com/api',
 };
 
+// FMP retired the /api/v3 endpoints for keys issued after Aug 31 2025 —
+// they answer 403 "Legacy Endpoint". Fundamentals use STABLE_URL.
+// Set FMP_API_KEY in the Render environment; never commit a key here.
 const FMP_CONFIG = {
-  API_KEY: process.env.FMP_API_KEY || '', // empty → engines fall back to hardcoded Granny holdings
-  BASE_URL: 'https://financialmodelingprep.com/api/v3',
+  API_KEY: process.env.FMP_API_KEY || '',
+  BASE_URL: 'https://financialmodelingprep.com/api/v3',   // legacy, 403 for new keys
+  STABLE_URL: 'https://financialmodelingprep.com/stable',
 };
 
 // Standard browser-like headers for Yahoo Finance (no key required).

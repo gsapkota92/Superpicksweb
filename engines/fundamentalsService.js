@@ -9,7 +9,7 @@
 // Uses Node 18+ global fetch and YAHOO_HEADERS from ./config.
 // ═══════════════════════════════════════════
 
-const { YAHOO_HEADERS } = require('./config');
+const { YAHOO_HEADERS, FMP_CONFIG } = require('./config');
 
 // ─── Curated Long-Term Stock Universe ───
 const LONG_TERM_UNIVERSE = [
@@ -26,6 +26,145 @@ const LONG_TERM_UNIVERSE = [
   // Growth
   'NFLX', 'AMD', 'TSLA', 'SHOP', 'PLTR', 'COIN', 'SQ',
 ];
+
+// ═══════════════════════════════════════════
+// Financial Modeling Prep — primary fundamentals source
+//
+// Yahoo's v10/quoteSummary now requires cookie+crumb auth and returns 401
+// for every symbol, which silently zeroed every metric. FMP's `stable` API
+// serves the same numbers over a plain keyed GET.
+//
+// The free tier allows roughly 50 requests a day, so this spends as few as
+// possible: ratios-ttm carries P/E, P/B, net margin, debt/equity, dividend
+// yield, EPS and book value (ROE is derived from the last two), leaving
+// profile and financial-growth as long-cached extras. Values are served
+// past their expiry when the quota runs out, so the list goes stale rather
+// than empty.
+//
+// Field names below are the ones the API actually returns — verified
+// against live responses and cross-checked against Robinhood for AAPL
+// (P/E 36.50 vs 36.65, P/B 43.69 vs 43.44, yield 0.33% vs 0.328%).
+// ═══════════════════════════════════════════
+
+const TTL_RATIOS = 24 * 60 * 60 * 1000;
+const TTL_STATIC = 30 * 24 * 60 * 60 * 1000;
+const FMP_GAP_MS = 120;
+
+const _fmpCache = new Map();
+let _fmpChain = Promise.resolve();
+let _fmpShapeLogged = false;
+let _fmpRateLimited = 0;
+
+function firstNum(obj, ...keys) {
+  for (const k of keys) {
+    const v = obj ? obj[k] : undefined;
+    const n = typeof v === 'string' ? parseFloat(v) : v;
+    if (n != null && isFinite(n)) return n;
+  }
+  return null;
+}
+
+const toPct = (v) => (v == null ? null : v * 100);
+
+/** One request at a time, with a gap — the free tier rejects bursts with 402. */
+function fmpQueue(fn) {
+  const next = _fmpChain.then(async () => {
+    const r = await fn();
+    await new Promise((res) => setTimeout(res, FMP_GAP_MS));
+    return r;
+  });
+  _fmpChain = next.catch(() => {});
+  return next;
+}
+
+async function fmpGet(path) {
+  if (!FMP_CONFIG.API_KEY) return null;
+  // The retry loop stays INSIDE the queued slot; re-entering fmpQueue for a
+  // retry would make the call wait on the slot it already holds.
+  return fmpQueue(async () => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const sep = path.includes('?') ? '&' : '?';
+        const res = await fetch(`${FMP_CONFIG.STABLE_URL}${path}${sep}apikey=${FMP_CONFIG.API_KEY}`);
+        const json = await res.json().catch(() => null);
+        const err = json && (json['Error Message'] || json.message);
+        if (res.status === 402 && attempt < 3) {
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        if (res.status === 429) { _fmpRateLimited++; return null; }
+        if (!res.ok || err) {
+          console.log(`[Fund] FMP ${path.split('?')[0]} -> ${res.status}${err ? ' ' + String(err).slice(0, 70) : ''}`);
+          return null;
+        }
+        return Array.isArray(json) ? json[0] : json;
+      } catch (e) {
+        console.log(`[Fund] FMP ${path.split('?')[0]} error: ${e.message}`);
+        return null;
+      }
+    }
+    _fmpRateLimited++;
+    return null;
+  });
+}
+
+/** Fresh inside its TTL; otherwise refetch, falling back to the stale copy. */
+async function cachedGet(key, ttl, fetcher) {
+  const hit = _fmpCache.get(key);
+  if (hit && Date.now() - hit.savedAt < ttl) return hit.data;
+  const fresh = await fetcher();
+  if (fresh) {
+    _fmpCache.set(key, { data: fresh, savedAt: Date.now() });
+    return fresh;
+  }
+  return hit ? hit.data : null;
+}
+
+async function fetchFromFMP(symbol) {
+  if (!FMP_CONFIG.API_KEY) return null;
+
+  const ratios = await cachedGet(`r:${symbol}`, TTL_RATIOS,
+    () => fmpGet(`/ratios-ttm?symbol=${symbol}`));
+  const profile = await cachedGet(`p:${symbol}`, TTL_STATIC,
+    () => (ratios ? fmpGet(`/profile?symbol=${symbol}`) : Promise.resolve(null)));
+  const growth = await cachedGet(`g:${symbol}`, TTL_STATIC,
+    () => (ratios ? fmpGet(`/financial-growth?symbol=${symbol}&limit=1`) : Promise.resolve(null)));
+
+  if (!ratios && !profile) return null;
+
+  if (!_fmpShapeLogged) {
+    _fmpShapeLogged = true;
+    console.log(`[Fund] FMP stable OK — ratios:${Object.keys(ratios || {}).length} profile:${Object.keys(profile || {}).length} growth:${Object.keys(growth || {}).length}`);
+  }
+
+  const pe = firstNum(ratios, 'priceToEarningsRatioTTM', 'priceToEarningsDilutedRatioTTM');
+  const price = firstNum(profile, 'price');
+  const nips = firstNum(ratios, 'netIncomePerShareTTM');
+  const bvps = firstNum(ratios, 'bookValuePerShareTTM', 'shareholdersEquityPerShareTTM');
+
+  const out = {
+    pe: pe || 0,
+    forwardPE: 0,
+    eps: nips != null ? nips : (pe && price ? price / pe : 0),
+    marketCap: firstNum(profile, 'marketCap') || 0,
+    dividendYield: toPct(firstNum(ratios, 'dividendYieldTTM')) || 0,
+    priceToBook: firstNum(ratios, 'priceToBookRatioTTM') || 0,
+    beta: firstNum(profile, 'beta') || 1,
+    profitMargin: toPct(firstNum(ratios, 'netProfitMarginTTM')) || 0,
+    debtToEquity: firstNum(ratios, 'debtToEquityRatioTTM') || 0,
+    returnOnEquity: nips != null && bvps ? (nips / bvps) * 100 : 0,
+    revenueGrowth: toPct(firstNum(growth, 'revenueGrowth')) || 0,
+    sector: (profile && profile.sector) || '',
+    industry: (profile && profile.industry) || '',
+    name: (profile && profile.companyName) || '',
+  };
+
+  const usable = [out.pe, out.profitMargin, out.returnOnEquity].some((v) => v !== 0);
+  return usable ? out : null;
+}
+
+function fmpRateLimitedCount() { return _fmpRateLimited; }
+function resetFmpRateLimited() { _fmpRateLimited = 0; }
 
 // ── Yahoo crumb/cookie auth (v7 now requires it) ──
 let _yahooCrumb = null;
@@ -112,11 +251,34 @@ async function fetchFundamentals(symbol) {
     let revenueGrowth = 0;
     let sector = '', industry = '', analystRating = '', earningsDate = '';
 
-    // Try quoteSummary with expanded modules for ALL fundamental data
+    // ── Primary: FMP ──
+    const fmp = await fetchFromFMP(symbol);
+    if (fmp) {
+      pe = fmp.pe || 0;
+      forwardPE = fmp.forwardPE || 0;
+      eps = fmp.eps || 0;
+      marketCap = fmp.marketCap || 0;
+      dividendYield = fmp.dividendYield || 0;
+      priceToBook = fmp.priceToBook || 0;
+      beta = fmp.beta || 1;
+      profitMargin = fmp.profitMargin || 0;
+      debtToEquity = fmp.debtToEquity || 0;
+      returnOnEquity = fmp.returnOnEquity || 0;
+      revenueGrowth = fmp.revenueGrowth || 0;
+      sector = fmp.sector || '';
+      industry = fmp.industry || '';
+      if (fmp.name) name = name || fmp.name;
+    }
+
+    // ── Yahoo quoteSummary is retired here ──
+    // It needs a cookie+crumb this process cannot reliably assemble, so every
+    // call returned 401. Kept behind the flag in case Yahoo reopens it.
+    const USE_YAHOO_FALLBACK = false;
+
     const modules = 'summaryDetail,defaultKeyStatistics,financialData,summaryProfile,calendarEvents';
     const hosts = ['query2.finance.yahoo.com', 'query1.finance.yahoo.com'];
 
-    for (const host of hosts) {
+    for (const host of ((fmp || !USE_YAHOO_FALLBACK) ? [] : hosts)) {
       try {
         const { crumb, cookie } = await getYahooCrumb();
         const crumbParam = crumb ? `&crumb=${encodeURIComponent(crumb)}` : '';
@@ -205,9 +367,13 @@ async function fetchFundamentals(symbol) {
     const aboveTwoHundredDay = twoHundredDayAvg > 0 ? price > twoHundredDayAvg : null;
 
     const gotData = pe > 0 || profitMargin !== 0 || eps !== 0;
+    // Surfaced so the caller can drop unscored stocks instead of ranking
+    // them on all-zero inputs, which reads as a real result.
     console.log(`[Fund] ${symbol} ${gotData ? '✓' : '⚠'} PE=${pe.toFixed(1)} PM=${profitMargin.toFixed(1)}% ROE=${returnOnEquity.toFixed(1)}%`);
 
     return {
+      hasFundamentals: gotData,
+      source: fmp ? 'fmp' : (gotData ? 'yahoo' : 'none'),
       symbol,
       name: name || symbol,
       sector,
@@ -381,7 +547,10 @@ async function analyzeLongTermStocks(onProgress) {
     const batchResults = await Promise.all(
       batch.map(async (sym) => {
         const data = await fetchFundamentals(sym);
-        return data ? scoreFundamentals(data) : null;
+        // A stock with no fundamentals scores 5/10 on all-zero inputs, which
+        // reads as a real ranking. Drop it rather than rank noise.
+        if (!data || !data.hasFundamentals) return null;
+        return scoreFundamentals(data);
       })
     );
 
@@ -398,6 +567,15 @@ async function analyzeLongTermStocks(onProgress) {
   }
 
   console.log(`[Fund] Analysis complete: ${results.length}/${LONG_TERM_UNIVERSE.length} stocks scored`);
+  if (fmpRateLimitedCount() > 0) {
+    console.log(`[Fund] ${fmpRateLimitedCount()} FMP calls hit the daily free-tier limit. `
+      + 'Cached values were used where available; the rest fill in tomorrow.');
+    resetFmpRateLimited();
+  } else if (results.length === 0) {
+    console.log(FMP_CONFIG.API_KEY
+      ? '[Fund] No fundamentals returned — check FMP_API_KEY and its daily quota.'
+      : '[Fund] No fundamentals source configured. Set FMP_API_KEY in the Render environment.');
+  }
   results.sort((a, b) => b.fundamentalScore - a.fundamentalScore);
   return results;
 }

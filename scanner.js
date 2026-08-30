@@ -1,13 +1,14 @@
 // ═══════════════════════════════════════════════════
 // Super Picks Scanner — Server-side TA Engine
 // Uses the SAME logic as the mobile app: the app's exact
-// technicalAnalysis.js engine over the Granny Shots holdings
-// universe, keeping composite score >= 6 (the app's Super Picks bar).
-// Ported engine lives in ./engines/.
+// technicalAnalysis.js engine over the Granny Shots holdings PLUS the
+// app's full sector-map universe, keeping composite score >= 6 (the
+// app's Super Picks bar). Ported engines live in ./engines/.
 // ═══════════════════════════════════════════════════
 
 const { getAllHoldings } = require('./engines/holdings');
 const { analyzeStocks } = require('./engines/technicalAnalysis');
+const { EQUITY_UNIVERSE, sectorFor } = require('./engines/universe');
 
 const SUPER_PICK_MIN_SCORE = 6; // matches the app's DashboardScreen threshold
 
@@ -15,14 +16,16 @@ const SUPER_PICK_MIN_SCORE = 6; // matches the app's DashboardScreen threshold
 // (identical field names to what POST /api/picks stores, so the frontend
 // and /api/picks, /api/signals all keep working unchanged).
 function mapPick(holding, r) {
+  const meta = sectorFor(r.symbol || holding?.symbol);
   const price = r.price || 0;
   const prevClose = r.prevClose || 0;
   const dailyChange = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
   const s = r.signals || {};
   const ind = r.indicators || {};
   return {
-    symbol: r.symbol || holding.symbol,
-    name: holding.name || r.name || holding.symbol,
+    symbol: r.symbol || holding?.symbol,
+    name: holding?.name || r.name || r.symbol || holding?.symbol,
+    sector: holding?.sector || meta.sector || '',
     composite_score: r.compositeScore,
     overall_signal: r.overallSignal,
     price: Math.round(price * 100) / 100,
@@ -47,13 +50,16 @@ async function runScan(getStore, persist) {
   const startTime = Date.now();
 
   const holdings = getAllHoldings();
-  const symbols = [...new Set(holdings.map((h) => h.symbol))];
   const holdingBySymbol = {};
-  holdings.forEach((h) => { holdingBySymbol[h.symbol] = h; });
+  holdings.forEach((h) => { if (!holdingBySymbol[h.symbol]) holdingBySymbol[h.symbol] = h; });
 
-  console.log(`[Scanner] Starting TA scan of ${symbols.length} holdings...`);
+  // ETF holdings first, then everything else the app's sector map covers.
+  const symbols = [...new Set([...Object.keys(holdingBySymbol), ...EQUITY_UNIVERSE])];
 
-  const taResults = await analyzeStocks(symbols, { batchSize: 6 });
+  console.log(`[Scanner] Starting TA scan of ${symbols.length} symbols `
+    + `(${Object.keys(holdingBySymbol).length} ETF holdings + ${EQUITY_UNIVERSE.length} sector universe)...`);
+
+  const taResults = await analyzeStocks(symbols, { batchSize: 8 });
 
   const picks = symbols
     .filter((sym) => taResults[sym] && typeof taResults[sym].compositeScore === 'number')

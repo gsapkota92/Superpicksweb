@@ -708,30 +708,51 @@ async function analyzeStock(symbol) {
     // ── Composite Score — original weights (minus flow), scaled to 100% ──
     // Original: Momentum 24%, MACD 20%, SMA 15%, Stoch 10%, Volume 10%, CCI 5%, WillR 2%, Flow 30%
     // Without flow (86% → 100%): Momentum 28%, MACD 23%, SMA 17.5%, Stoch 11.5%, Volume 11.5%, CCI 6%, WillR 2.5%
+    // Weights track how well each signal actually corresponded to strength,
+    // measured across the scanned universe (correlation with the 1-month
+    // return in brackets). The three oscillators come out strongly NEGATIVE —
+    // they penalise exactly the stocks that have been working — so they stay
+    // in only as a light overbought brake, not with the 20% of the vote they
+    // used to hold between them.
+    //
+    // The old set also ignored five signals this function already computes.
+    // Kept in sync with the mobile app's engine.
     const weights = {
-      momentum: 2.8,
-      macd: 2.3,
-      sma: 1.75,
-      stochastic: 1.15,
-      volume: 1.15,
-      cci: 0.6,
-      williamsR: 0.25,
+      sma: 2.6,          // [+0.55] trend structure — golden/death cross, price vs MAs
+      momentum: 1.6,     // [+0.27] was 2.8
+      macd: 1.4,         // [+0.34] was 2.3
+      aroon: 1.2,        // [+0.50] was unused
+      adx: 1.0,          // [+0.32] was unused
+      rsi: 0.7,          // [+0.16] was unused
+      volume: 0.7,       // [+0.26]
+      mfi: 0.5,          // [+0.23] was unused
+      obv: 0.4,          // [+0.17] was unused
+      stochastic: 0.3,   // [-0.60] was 1.15
+      cci: 0.2,          // [-0.41] was 0.6
+      williamsR: 0.1,    // [-0.57] was 0.25
     };
 
-    const activeWeights = { ...weights };
-    if (currentCCI == null) delete activeWeights.cci;
-    if (currentWILLR == null) delete activeWeights.williamsR;
+    // Any signal whose input was unavailable drops out of both the numerator
+    // and the weight total, so a missing indicator dilutes nothing.
+    const contributions = {
+      sma: smaSignal, aroon: aroonSignal, macd: macdSignal, momentum: momentumSignal,
+      adx: adxSignal, rsi: rsiSignal, volume: volumeSignal, obv: obvSignal,
+      mfi: mfiSignal, stochastic: stochSignal, cci: cciSignal, williamsR: willrSignal,
+    };
+    if (currentCCI == null) delete contributions.cci;
+    if (currentWILLR == null) delete contributions.williamsR;
+
+    const activeWeights = {};
+    let weighted = 0;
+    Object.entries(contributions).forEach(([key, sig]) => {
+      const score = sig?.score;
+      if (score == null || !isFinite(score)) return;
+      activeWeights[key] = weights[key];
+      weighted += score * weights[key];
+    });
 
     const totalWeight = Object.values(activeWeights).reduce((a, b) => a + b, 0);
-
-    let compositeScore =
-      (momentumSignal.score * activeWeights.momentum +
-       macdSignal.score * activeWeights.macd +
-       smaSignal.score * activeWeights.sma +
-       stochSignal.score * activeWeights.stochastic +
-       volumeSignal.score * activeWeights.volume +
-       (activeWeights.cci ? cciSignal.score * activeWeights.cci : 0) +
-       (activeWeights.williamsR ? willrSignal.score * activeWeights.williamsR : 0)) / totalWeight;
+    let compositeScore = totalWeight > 0 ? weighted / totalWeight : 0;
 
     const normalizedScore = Math.round(compositeScore * 10 * 5) / 10;
     const overallSignal = normalizedScore > 6 ? 'Strong Buy'
