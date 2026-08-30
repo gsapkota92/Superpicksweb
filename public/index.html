@@ -620,6 +620,114 @@
     .theme-toggle .icon-sun { display: none; }
     [data-theme="light"] .theme-toggle .icon-sun { display: block; }
     [data-theme="light"] .theme-toggle .icon-moon { display: none; }
+
+    /* ═══════ Sectors tab ═══════ */
+    .sec-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .seg {
+      display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    .seg button {
+      border: none; background: none; cursor: pointer; color: var(--text-muted);
+      font: inherit; font-size: 0.8rem; font-weight: 600;
+      padding: 6px 14px; border-radius: 8px;
+    }
+    .seg button.active {
+      background: var(--accent); color: #05121c;
+      box-shadow: 0 6px 16px -8px var(--accent);
+    }
+    .sec-periods { display: flex; flex-wrap: wrap; gap: 4px; }
+    .sec-period {
+      border: 1px solid var(--border); background: var(--bg-card); cursor: pointer;
+      color: var(--text-muted); font: inherit; font-size: 0.72rem; font-weight: 700;
+      padding: 5px 10px; border-radius: 7px; letter-spacing: 0.03em;
+    }
+    .sec-period.active { border-color: var(--accent); color: var(--accent); box-shadow: var(--glow); }
+    .sec-period:disabled { opacity: 0.35; cursor: default; }
+    .sec-meta {
+      margin-left: auto; font-size: 0.72rem; color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace; text-align: right; line-height: 1.5;
+    }
+
+    /* Heat map */
+    .sec-sector {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 0.9rem;
+    }
+    .sec-sector-head {
+      display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .sec-sector-name { font-weight: 700; font-size: 0.95rem; letter-spacing: 0.02em; }
+    .sec-sector-med { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.95rem; }
+    .sec-sector-sub { font-size: 0.72rem; color: var(--text-dim); margin-left: auto; }
+    .sec-subsector { margin-bottom: 0.7rem; }
+    .sec-subsector:last-child { margin-bottom: 0; }
+    .sec-subsector-name {
+      font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 5px;
+    }
+    .sec-cells { display: flex; flex-wrap: wrap; gap: 5px; }
+    .sec-cell {
+      min-width: 74px; padding: 7px 8px; border-radius: 8px; cursor: default;
+      border: 1px solid var(--hairline); text-align: left;
+    }
+    .sec-cell-tick {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700;
+      font-size: 0.76rem; color: var(--text-strong);
+    }
+    .sec-cell-ret { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 600; }
+    .sec-cell.leader { box-shadow: inset 0 0 0 1px var(--accent); }
+
+    /* Trend / Names lists */
+    .sec-cols {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .sec-panel {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 0.9rem 1rem;
+    }
+    .sec-panel h4 {
+      font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 0.6rem; font-weight: 700;
+    }
+    .sec-row {
+      display: flex; align-items: center; gap: 8px; padding: 5px 0;
+      border-bottom: 1px solid var(--hairline); font-size: 0.8rem;
+    }
+    .sec-row:last-child { border-bottom: none; }
+    .sec-row .t { font-family: 'JetBrains Mono', monospace; font-weight: 700; min-width: 62px; }
+    .sec-row .s { color: var(--text-dim); font-size: 0.7rem; flex: 1;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sec-row .v { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+    .sec-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+    .sec-tag {
+      font-size: 0.62rem; font-weight: 700; padding: 2px 5px; border-radius: 4px;
+      background: rgba(148,163,184,0.14); color: var(--text-muted); white-space: nowrap;
+    }
+    .sec-tag.up { background: var(--green-bg); color: var(--green); }
+    .sec-tag.down { background: var(--red-bg); color: var(--red); }
+
+    /* Read */
+    .sec-note {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-left: 3px solid var(--accent); border-radius: 10px;
+      padding: 0.8rem 1rem; margin-bottom: 0.6rem; font-size: 0.87rem; line-height: 1.5;
+    }
+    .sec-note.warn { border-left-color: var(--red); }
+    .sec-note-title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--text-dim); font-weight: 700; margin-bottom: 3px;
+    }
+
+    @media (max-width: 640px) {
+      .sec-meta { margin-left: 0; text-align: left; width: 100%; }
+      .sec-cell { min-width: calc(33.333% - 4px); }
+    }
   </style>
 </head>
 <body>
@@ -649,6 +757,7 @@
   <nav class="nav-tabs">
     <button class="nav-tab active" data-tab="overview">Overview</button>
     <button class="nav-tab" data-tab="technical">Technical</button>
+    <button class="nav-tab" data-tab="sectors">Sectors</button>
     <button class="nav-tab" data-tab="longterm">Long Term</button>
     <button class="nav-tab" data-tab="screener">Screener</button>
     <button class="nav-tab" data-tab="charts">Charts</button>
@@ -754,6 +863,35 @@
           <div class="empty-title">No picks yet</div>
           <p>Technical picks will appear here once a scan completes.</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SECTORS TAB ═══════ -->
+  <div class="tab-content" id="tab-sectors">
+    <div class="container">
+      <div class="sec-bar">
+        <div class="seg" id="secClassSeg">
+          <button data-class="equity" class="active">Stocks</button>
+          <button data-class="crypto">Crypto</button>
+        </div>
+        <div class="seg" id="secViewSeg">
+          <button data-view="map" class="active">Map</button>
+          <button data-view="trend">Trend</button>
+          <button data-view="names">Names</button>
+          <button data-view="read">Read</button>
+        </div>
+        <div class="sec-meta" id="secMeta">Loading&hellip;</div>
+      </div>
+
+      <div class="sec-periods" id="secPeriods" style="margin-bottom:1.25rem"></div>
+
+      <div id="secLoading" class="loading"><div class="spinner"></div>Loading rotation&hellip;</div>
+      <div id="secBody"></div>
+      <div id="secEmpty" class="empty-state" style="display:none">
+        <div class="empty-icon">&#x1F5FA;</div>
+        <div class="empty-title">No scan yet</div>
+        <p>The rotation map fills in at the next checkpoint &mdash; 10:00&nbsp;AM, 1:00&nbsp;PM and 4:00&nbsp;PM ET for stocks, every two hours for crypto.</p>
       </div>
     </div>
   </div>
@@ -1002,6 +1140,28 @@
 }</div>
         </div>
 
+        <!-- /api/sectors -->
+        <div class="api-endpoint">
+          <span class="api-method method-get">GET</span>
+          <span class="api-path">/api/sectors?class=equity&amp;period=1M</span>
+          <div class="api-desc">Sector rotation, the same scan the app's Sector Map runs. <code>class</code> is <code>equity</code> (vs SPY, refreshed 10:00&nbsp;AM / 1:00&nbsp;PM / 4:00&nbsp;PM ET) or <code>crypto</code> (vs BTC, every two hours). <code>period</code> is any of 1D, 3D, 1W, 2W, 1M, 3M, 6M, YTD, 1Y or SINCE (change since the last checkpoint). The views carry tickers; look them up in <code>rows</code>.</div>
+          <div class="code-block">{
+  "assetClass": "equity",
+  "asof": "2026-08-28",
+  "nextCheckpoint": { "label": "Mon 10:00 AM ET" },
+  "sectors": [
+    { "name": "TECH", "median": 13.6, "count": 52, "leaders": 14, "broken": 11,
+      "subsectors": [ { "name": "Software", "median": 25.8,
+                        "members": ["TEAM", "ESTC", "MDB"] } ] }
+  ],
+  "etfs":  [ { "symbol": "XLK", "ret": 8.5, "vsSpy": 4.7 } ],
+  "flow":  [ { "sector": "UTILITIES", "longRank": 11, "shortRank": 4, "rankDelta": 7 } ],
+  "read":  [ { "text": "Money is rotating into UTILITIES..." } ],
+  "rows":  [ { "ticker": "TEAM", "1M": 90.5, "trendScore": 95, "rsi14": 79,
+               "setup": "NEUTRAL", "signals": ["NEW_HIGH", "ACCELERATING"] } ]
+}</div>
+        </div>
+
         <!-- /api/stats -->
         <div class="api-endpoint">
           <span class="api-method method-get">GET</span>
@@ -1085,6 +1245,7 @@ rh.logout()</div>
     const tabLoaded = {
       overview: false,
       technical: false,
+      sectors: false,
       alpha: false,
       longterm: false,
       charts: false,
@@ -1107,6 +1268,7 @@ rh.logout()</div>
       if (!tabLoaded[tabName]) {
         switch (tabName) {
           case 'technical': loadTechnical(); break;
+          case 'sectors': loadSectors(); break;
           case 'alpha': loadAlpha(); break;
           case 'longterm': loadLongTerm(); break;
           case 'screener': loadScreener('stocks'); break;
@@ -1132,6 +1294,254 @@ rh.logout()</div>
       });
     })();
 
+
+    // ═══════ SECTORS (rotation map) ═══════
+    //
+    // The server does the scanning on its checkpoint clock; this only draws
+    // whatever /api/sectors is holding. The four views mirror the app's
+    // Sector Map tab: Map (heat), Trend (what changed), Names (the leaders
+    // and laggards) and Read (the same numbers in words).
+
+    const secState = { class: 'equity', view: 'map', period: '1M', data: {} };
+
+    function secColor(v, scale) {
+      if (v == null || isNaN(v)) return 'rgba(148,163,184,0.10)';
+      const t = Math.max(-1, Math.min(1, v / (scale || 8)));
+      const a = 0.10 + Math.abs(t) * 0.42;
+      return t >= 0 ? `rgba(0,230,168,${a.toFixed(3)})` : `rgba(255,84,112,${a.toFixed(3)})`;
+    }
+    function secPct(v, dp) {
+      if (v == null || isNaN(v)) return '--';
+      const d = dp == null ? 1 : dp;
+      return (v > 0 ? '+' : '') + v.toFixed(d) + '%';
+    }
+    function secCls(v) { return v == null ? '' : (v >= 0 ? 'change-positive' : 'change-negative'); }
+
+    async function loadSectors(force) {
+      const d = secState.data[secState.class];
+      if (d && !force) { renderSectorTab(); return; }
+      document.getElementById('secLoading').style.display = 'block';
+      document.getElementById('secBody').innerHTML = '';
+      document.getElementById('secEmpty').style.display = 'none';
+      try {
+        const res = await fetch(`${API_BASE}/api/sectors?class=${secState.class}&period=${encodeURIComponent(secState.period)}`);
+        const json = await res.json();
+        json.byTicker = {};
+        (json.rows || []).forEach((r) => { json.byTicker[r.ticker] = r; });
+        secState.data[secState.class] = json;
+      } catch (e) {
+        secState.data[secState.class] = { ready: false, error: e.message };
+      }
+      renderSectorTab();
+    }
+
+    function renderSectorTab() {
+      const d = secState.data[secState.class];
+      document.getElementById('secLoading').style.display = 'none';
+      const body = document.getElementById('secBody');
+      const empty = document.getElementById('secEmpty');
+      renderSecPeriods(d);
+      renderSecMeta(d);
+
+      if (!d || !d.ready) {
+        body.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      body.innerHTML = ({
+        map: renderSecMap, trend: renderSecTrend,
+        names: renderSecNames, read: renderSecRead,
+      })[secState.view](d);
+    }
+
+    function renderSecPeriods(d) {
+      const wrap = document.getElementById('secPeriods');
+      // SINCE only means something once two scans exist to compare.
+      const hasSince = !!(d && d.rows || []).length
+        && (d.rows || []).some((r) => r[d.sinceKey] != null);
+      const list = (d && d.periods ? d.periods : [{ key: '1M', label: '1M' }]).slice();
+      if (hasSince) list.unshift({ key: d.sinceKey, label: 'Since last update' });
+      wrap.innerHTML = list.map((p) => `<button class="sec-period${p.key === secState.period ? ' active' : ''}" data-period="${esc(p.key)}">${esc(p.label)}</button>`).join('');
+    }
+
+    function renderSecMeta(d) {
+      const m = document.getElementById('secMeta');
+      if (!d) { m.textContent = 'Loading…'; return; }
+      if (!d.ready) {
+        m.innerHTML = `no scan yet &middot; next ${esc(d.nextCheckpoint ? d.nextCheckpoint.label : '?')}`;
+        return;
+      }
+      m.innerHTML = `${d.rows.length} names &middot; ${esc(d.benchmark)} benchmark<br>`
+        + `as of ${esc(d.asof)} &middot; next update ${esc(d.nextCheckpoint ? d.nextCheckpoint.label : '?')} ${esc(d.nextIn || '')}`;
+    }
+
+    // ── Map: sector → sub-sector → heat cells ──
+    function renderSecMap(d) {
+      const scale = (d.heatScale || {})[d.period] || 8;
+      const etfs = (d.etfs || []).map((e) => `
+        <div class="sec-cell" style="background:${secColor(e.ret, scale)}">
+          <div class="sec-cell-tick">${esc(e.symbol)}</div>
+          <div class="sec-cell-ret ${secCls(e.ret)}">${secPct(e.ret)}</div>
+        </div>`).join('');
+
+      const sectors = (d.sectors || []).map((sec) => {
+        const style = (d.style || {})[sec.name] || {};
+        const subs = sec.subsectors.map((sub) => `
+          <div class="sec-subsector">
+            <div class="sec-subsector-name">${esc(sub.name)} &middot; ${secPct(sub.median)}</div>
+            <div class="sec-cells">${sub.members.map((t) => secCell(d, t, scale)).join('')}</div>
+          </div>`).join('');
+        return `
+          <div class="sec-sector">
+            <div class="sec-sector-head">
+              <span class="sec-sector-name">${esc(style.icon || '')} ${esc(sec.name)}</span>
+              <span class="sec-sector-med ${secCls(sec.median)}">${secPct(sec.median)}</span>
+              <span class="sec-sector-sub">${sec.count} names &middot; ${sec.leaders} leading &middot; ${sec.broken} broken</span>
+            </div>
+            ${subs}
+          </div>`;
+      }).join('');
+
+      return `<div class="section-title">Benchmarks</div>
+        <div class="sec-sector"><div class="sec-cells">${etfs}</div></div>
+        <div class="section-title">Sectors by ${esc(d.period)} return</div>${sectors}`;
+    }
+
+    function secCell(d, ticker, scale) {
+      const r = d.byTicker[ticker];
+      if (!r) return '';
+      const v = r[d.period];
+      const lead = String(r.setup || '').startsWith('LEADER') ? ' leader' : '';
+      const title = `${ticker} · ${r.setup} · trend ${r.trendScore} · RSI ${r.rsi14}`
+        + (r.signals && r.signals.length ? ` · ${r.signals.join(', ')}` : '');
+      return `<div class="sec-cell${lead}" style="background:${secColor(v, scale)}" title="${esc(title)}">
+        <div class="sec-cell-tick">${esc(ticker)}</div>
+        <div class="sec-cell-ret ${secCls(v)}">${secPct(v)}</div>
+      </div>`;
+    }
+
+    // ── Trend: rotation flow + what changed at this checkpoint ──
+    function renderSecTrend(d) {
+      const flow = (d.flow || []).map((f) => {
+        const dir = f.rankDelta > 0 ? 'up' : f.rankDelta < 0 ? 'down' : '';
+        const arrow = f.rankDelta > 0 ? '▲' : f.rankDelta < 0 ? '▼' : '–';
+        return `<div class="sec-row">
+          <span class="t">${esc(f.sector)}</span>
+          <span class="s">${f.longRank} → ${f.shortRank} over 3M → 1W</span>
+          <span class="sec-tag ${dir}">${arrow} ${Math.abs(f.rankDelta)}</span>
+        </div>`;
+      }).join('') || '<div class="sec-row"><span class="s">No flow yet.</span></div>';
+
+      const list = (title, tickers, key, dp) => `
+        <div class="sec-panel">
+          <h4>${esc(title)}</h4>
+          ${(tickers || []).length ? tickers.map((t) => secListRow(d, t, key, dp)).join('')
+            : '<div class="sec-row"><span class="s">Nothing here right now.</span></div>'}
+        </div>`;
+
+      const m = d.movers || {};
+      const changed = (d.justChanged || []).map((t) => {
+        const r = d.byTicker[t]; if (!r) return '';
+        const tags = [
+          ...(r.newSignals || []).map((k) => `<span class="sec-tag up">+${esc(k.replace(/_/g, ' '))}</span>`),
+          ...(r.goneSignals || []).map((k) => `<span class="sec-tag down">-${esc(k.replace(/_/g, ' '))}</span>`),
+          r.setupFrom ? `<span class="sec-tag">${esc(r.setupFrom)} → ${esc(r.setup)}</span>` : '',
+        ].join('');
+        return `<div class="sec-row"><span class="t">${esc(t)}</span><span class="sec-tags">${tags}</span></div>`;
+      }).join('');
+
+      return `<div class="section-title">Where money is moving</div>
+        <div class="sec-panel" style="margin-bottom:1rem">${flow}</div>
+        ${changed ? `<div class="section-title">Changed at the last checkpoint</div>
+          <div class="sec-panel" style="margin-bottom:1rem">${changed}</div>` : ''}
+        <div class="section-title">Momentum</div>
+        <div class="sec-cols">
+          ${list('Accelerating', m.accelerating, 'accel', 2)}
+          ${list('Stalling', m.stalling, 'accel', 2)}
+          ${list('Breakouts & new highs', m.breakouts, 'trendScore', 0)}
+          ${list('Golden crosses', m.crosses, 'trendScore', 0)}
+          ${list('RSI resets', m.resets, 'trendScore', 0)}
+          ${list('Volume surges', m.surges, 'volRatio', 2)}
+          ${list('Breakdowns', m.breakdowns, 'trendScore', 0)}
+        </div>`;
+    }
+
+    function secListRow(d, ticker, key, dp) {
+      const r = d.byTicker[ticker];
+      if (!r) return '';
+      const v = key ? r[key] : r[d.period];
+      const val = key === 'trendScore' ? String(v)
+        : key === 'volRatio' ? `${(v || 0).toFixed(2)}x`
+        : key === 'accel' ? `${v > 0 ? '+' : ''}${(v || 0).toFixed(dp == null ? 2 : dp)}%/d`
+        : secPct(v, dp);
+      return `<div class="sec-row">
+        <span class="t">${esc(ticker)}</span>
+        <span class="s">${esc(r.subsector || r.sector || '')}</span>
+        <span class="v ${key === 'trendScore' || key === 'volRatio' ? '' : secCls(v)}">${esc(val)}</span>
+      </div>`;
+    }
+
+    // ── Names: strongest / weakest / biggest movers over the chosen window ──
+    function renderSecNames(d) {
+      const m = d.movers || {};
+      const sm = d.sinceMovers || {};
+      const panel = (title, tickers, key, dp) => `
+        <div class="sec-panel">
+          <h4>${esc(title)}</h4>
+          ${(tickers || []).length ? tickers.map((t) => secListRow(d, t, key, dp)).join('')
+            : '<div class="sec-row"><span class="s">Nothing here right now.</span></div>'}
+        </div>`;
+      const since = (sm.up || []).length
+        ? `<div class="section-title">Since the last update</div>
+           <div class="sec-cols" style="margin-bottom:1rem">
+             ${panel('Up', sm.up, d.sinceKey, 2)}
+             ${panel('Down', sm.down, d.sinceKey, 2)}
+           </div>` : '';
+      return `${since}
+        <div class="section-title">Over ${esc(d.period)}</div>
+        <div class="sec-cols">
+          ${panel('Biggest gainers', m.gainers, null)}
+          ${panel('Biggest losers', m.losers, null)}
+          ${panel('Strongest trends', m.strongest, 'trendScore', 0)}
+          ${panel('Weakest trends', m.weakest, 'trendScore', 0)}
+        </div>`;
+    }
+
+    // ── Read: the same scan, in sentences ──
+    function renderSecRead(d) {
+      const notes = (d.read || []).map((n) => `
+        <div class="sec-note${/out of|laggard|Rotating out|breaking/i.test(n.text) ? ' warn' : ''}">
+          ${n.title ? `<div class="sec-note-title">${esc(n.title)}</div>` : ''}
+          ${esc(n.text)}
+        </div>`).join('');
+      return `<div class="section-title">Rotation read &middot; ${esc(d.period)}</div>`
+        + (notes || '<div class="sec-note">Not enough data for a read yet.</div>');
+    }
+
+    // ── Controls ──
+    document.getElementById('secClassSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      secState.class = b.dataset.class;
+      document.querySelectorAll('#secClassSeg button').forEach((x) => x.classList.toggle('active', x === b));
+      // The SINCE window belongs to whichever scan produced it.
+      if (secState.period === 'SINCE') secState.period = '1M';
+      loadSectors();
+    });
+    document.getElementById('secViewSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      secState.view = b.dataset.view;
+      document.querySelectorAll('#secViewSeg button').forEach((x) => x.classList.toggle('active', x === b));
+      renderSectorTab();
+    });
+    document.getElementById('secPeriods').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      secState.period = b.dataset.period;
+      // The server sorts every view by the period, so a new window is a refetch —
+      // but the rows are already cached there, so it is not a new scan.
+      loadSectors(true);
+    });
+
     // ═══════ OVERVIEW ═══════
 
     async function loadOverview() {
@@ -1139,7 +1549,6 @@ rh.logout()</div>
         const responses = await Promise.allSettled([
           fetch(API_BASE + '/api/sentiment'),
           fetch(API_BASE + '/api/picks'),
-          fetch(API_BASE + '/api/alpha'),
           fetch(API_BASE + '/api/fundamentals')
         ]);
 
@@ -1163,15 +1572,9 @@ rh.logout()</div>
           }
         }
 
-        // Alpha count
-        if (responses[2].status === 'fulfilled' && responses[2].value.ok) {
-          const alphaData = await responses[2].value.json();
-          document.getElementById('summaryAlphaCount').textContent = (alphaData.picks || []).length;
-        }
-
         // Long term count
-        if (responses[3].status === 'fulfilled' && responses[3].value.ok) {
-          const ltData = await responses[3].value.json();
+        if (responses[2].status === 'fulfilled' && responses[2].value.ok) {
+          const ltData = await responses[2].value.json();
           const stocks = ltData.stocks || [];
           const buys = stocks.filter(s => s.fundamentalScore >= 6.5).length;
           document.getElementById('summaryLtCount').textContent = buys;

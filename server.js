@@ -12,6 +12,8 @@ const fs = require('fs');
 const { runScan } = require('./scanner');
 const { runFundamentalsScan } = require('./fundamentals-scanner');
 const { computeSentiment } = require('./sentiment');
+const { runSectorScan, startSectorSchedulers, sectorStatus } = require('./sector-scanner');
+const sectorMap = require('./engines/sectorMap');
 const screener = require('./engines/screenerService');
 
 const app = express();
@@ -37,6 +39,8 @@ let scanLogs = loadJSON('scanlogs.json', []);
 let alpha = loadJSON('alpha.json', []);
 let alphaHistory = loadJSON('alpha-history.json', []);
 let fundamentals = loadJSON('fundamentals.json', []);
+// Sector rotation, keyed by asset class: { equity: {...}, crypto: {...} }.
+let sectors = loadJSON('sectors.json', {});
 let nextId = loadJSON('nextid.json', { pick: 1, hist: 1, alpha: 1 });
 
 function persist() {
@@ -46,6 +50,7 @@ function persist() {
   saveJSON('alpha.json', alpha);
   saveJSON('alpha-history.json', alphaHistory);
   saveJSON('fundamentals.json', fundamentals);
+  saveJSON('sectors.json', sectors);
   saveJSON('nextid.json', nextId);
 }
 
@@ -137,6 +142,76 @@ app.get('/api/alpha', (req, res) => {
 // GET /api/fundamentals — Long-term fundamentals scores
 app.get('/api/fundamentals', (req, res) => {
   res.json({ timestamp: new Date().toISOString(), count: fundamentals.length, stocks: fundamentals });
+});
+
+// ═══════════════════════════════════════════════════
+// Sector rotation
+// ═══════════════════════════════════════════════════
+
+// GET /api/sectors — the whole Sectors tab in one response.
+//   ?class=equity|crypto   which scan (default equity)
+//   ?period=1D|1W|1M|…     the return window every view is sorted by
+//                          (SINCE = change since the last checkpoint)
+// The heavy lifting already happened in the scheduled scan; this only
+// re-aggregates stored rows, so it is cheap enough to call per tab click.
+app.get('/api/sectors', (req, res) => {
+  const assetClass = req.query.class === 'crypto' ? 'crypto' : 'equity';
+  const scan = sectors[assetClass];
+  const status = sectorStatus({ sectors }, assetClass);
+
+  if (!scan || !scan.rows?.length) {
+    return res.json({ ...status, ready: false, rows: [], sectors: [], etfs: [] });
+  }
+
+  const valid = new Set([...sectorMap.PERIODS.map((p) => p.key), sectorMap.SINCE_KEY]);
+  const period = valid.has(req.query.period) ? req.query.period : '1M';
+  const rows = scan.rows;
+
+  // Every view below is a different ordering of the same 341 rows, so
+  // sending the row objects inside each one ships the whole universe half a
+  // dozen times over (400KB a click). The views carry tickers instead and
+  // the browser looks them up in `rows`, which is sent once.
+  const tick = (list) => (list || []).map((r) => r.ticker);
+  const map = sectorMap.buildMap(rows, period, assetClass).map((s) => ({
+    ...s,
+    subsectors: s.subsectors.map((sub) => ({ ...sub, members: tick(sub.members) })),
+  }));
+  const movers = sectorMap.buildMovers(rows, period);
+  Object.keys(movers).forEach((k) => { movers[k] = tick(movers[k]); });
+  const sinceMovers = sectorMap.buildSinceMovers(rows);
+
+  res.json({
+    ...status,
+    ready: true,
+    period,
+    periods: sectorMap.PERIODS.map((p) => ({ key: p.key, label: p.label })),
+    sinceKey: sectorMap.SINCE_KEY,
+    heatScale: sectorMap.heatScaleFor(assetClass),
+    benchmark: sectorMap.benchmarkFor(assetClass),
+    style: sectorMap.SECTOR_STYLE,
+    setups: sectorMap.SETUPS,
+    signals: sectorMap.SIGNALS,
+    sectors: map,
+    etfs: sectorMap.buildETFRanking(rows, period, assetClass)
+      .map(({ row, ...e }) => e),
+    flow: sectorMap.buildRotationFlow(rows, '3M', '1W', assetClass),
+    movers,
+    justChanged: tick(sectorMap.buildJustChanged(rows)),
+    sinceMovers: { up: tick(sinceMovers.up), down: tick(sinceMovers.down) },
+    read: sectorMap.buildRotationRead(rows, period, assetClass),
+    rows,
+  });
+});
+
+// GET /api/sectors/scan — force a rotation scan outside the checkpoint clock.
+app.get('/api/sectors/scan', requireApiKey, async (req, res) => {
+  const assetClass = req.query.class === 'crypto' ? 'crypto' : 'equity';
+  try {
+    const result = await runSectorScan(assetClass, () => ({ sectors }), persist);
+    res.json({ success: true, assetClass, asof: result.asof, rows: result.rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/sentiment — Market sentiment gauge
@@ -399,4 +474,9 @@ app.listen(PORT, () => {
 
   // Re-scan every 15 minutes
   setInterval(autoScan, 15 * 60 * 1000);
+
+  // Sector rotation runs on its own checkpoint clock — see sector-scanner.js.
+  // It stands aside while the TA scan is mid-flight so the two never hit
+  // Yahoo together.
+  startSectorSchedulers(() => ({ sectors }), persist, () => !scanning);
 });
