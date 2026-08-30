@@ -9,6 +9,8 @@
 // Uses Node 18+ global fetch and YAHOO_HEADERS from ./config.
 // ═══════════════════════════════════════════
 
+const fs = require('fs');
+const path = require('path');
 const { YAHOO_HEADERS, FMP_CONFIG } = require('./config');
 
 // ─── Curated Long-Term Stock Universe ───
@@ -50,10 +52,54 @@ const TTL_RATIOS = 24 * 60 * 60 * 1000;
 const TTL_STATIC = 30 * 24 * 60 * 60 * 1000;
 const FMP_GAP_MS = 120;
 
-const _fmpCache = new Map();
+// ── Spending the free tier sensibly ──
+//
+// FMP's free tier allows roughly 50 calls a day. A cold scan of 41 symbols
+// wanting ratios + profile + growth would be 123 — over quota on the very
+// first run. Two things keep that in check:
+//
+//   1. A per-scan call budget. ratios-ttm is fetched first for every symbol,
+//      because it alone carries P/E, P/B, margin, debt/equity, yield, EPS and
+//      book value (ROE is derived) — enough to score a stock. Profile and
+//      growth are extras, fetched only with budget left over, filling in on
+//      later runs.
+//
+//   2. A cache written to the same data/ directory the server persists to.
+//      Note Render's free tier has an ephemeral filesystem, so this survives
+//      restarts only if a persistent disk is attached; the per-scan budget is
+//      what bounds the cost when it isn't.
+const FMP_MAX_CALLS_PER_SCAN = parseInt(process.env.FMP_MAX_CALLS_PER_SCAN || '25', 10);
+const CACHE_FILE = path.join(__dirname, '..', 'data', 'fmp-cache.json');
+
+let _fmpCache = new Map();
 let _fmpChain = Promise.resolve();
 let _fmpShapeLogged = false;
 let _fmpRateLimited = 0;
+let _callsThisScan = 0;
+let _cacheLoaded = false;
+
+function loadFmpCache() {
+  if (_cacheLoaded) return;
+  _cacheLoaded = true;
+  try {
+    const raw = fs.readFileSync(CACHE_FILE, 'utf8');
+    _fmpCache = new Map(Object.entries(JSON.parse(raw)));
+    console.log(`[Fund] FMP cache loaded: ${_fmpCache.size} entries`);
+  } catch { /* first run, or the disk was wiped */ }
+}
+
+function saveFmpCache() {
+  try {
+    fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(Object.fromEntries(_fmpCache)));
+  } catch (e) {
+    console.log(`[Fund] could not write the FMP cache: ${e.message}`);
+  }
+}
+
+function budgetLeft() {
+  return FMP_MAX_CALLS_PER_SCAN - _callsThisScan;
+}
 
 function firstNum(obj, ...keys) {
   for (const k of keys) {
@@ -77,15 +123,17 @@ function fmpQueue(fn) {
   return next;
 }
 
-async function fmpGet(path) {
+async function fmpGet(path_) {
   if (!FMP_CONFIG.API_KEY) return null;
+  if (budgetLeft() <= 0) return null;
+  _callsThisScan++;
   // The retry loop stays INSIDE the queued slot; re-entering fmpQueue for a
   // retry would make the call wait on the slot it already holds.
   return fmpQueue(async () => {
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        const sep = path.includes('?') ? '&' : '?';
-        const res = await fetch(`${FMP_CONFIG.STABLE_URL}${path}${sep}apikey=${FMP_CONFIG.API_KEY}`);
+        const sep = path_.includes('?') ? '&' : '?';
+        const res = await fetch(`${FMP_CONFIG.STABLE_URL}${path_}${sep}apikey=${FMP_CONFIG.API_KEY}`);
         const json = await res.json().catch(() => null);
         const err = json && (json['Error Message'] || json.message);
         if (res.status === 402 && attempt < 3) {
@@ -94,12 +142,12 @@ async function fmpGet(path) {
         }
         if (res.status === 429) { _fmpRateLimited++; return null; }
         if (!res.ok || err) {
-          console.log(`[Fund] FMP ${path.split('?')[0]} -> ${res.status}${err ? ' ' + String(err).slice(0, 70) : ''}`);
+          console.log(`[Fund] FMP ${path_.split('?')[0]} -> ${res.status}${err ? ' ' + String(err).slice(0, 70) : ''}`);
           return null;
         }
         return Array.isArray(json) ? json[0] : json;
       } catch (e) {
-        console.log(`[Fund] FMP ${path.split('?')[0]} error: ${e.message}`);
+        console.log(`[Fund] FMP ${path_.split('?')[0]} error: ${e.message}`);
         return null;
       }
     }
@@ -110,6 +158,7 @@ async function fmpGet(path) {
 
 /** Fresh inside its TTL; otherwise refetch, falling back to the stale copy. */
 async function cachedGet(key, ttl, fetcher) {
+  loadFmpCache();
   const hit = _fmpCache.get(key);
   if (hit && Date.now() - hit.savedAt < ttl) return hit.data;
   const fresh = await fetcher();
@@ -125,10 +174,14 @@ async function fetchFromFMP(symbol) {
 
   const ratios = await cachedGet(`r:${symbol}`, TTL_RATIOS,
     () => fmpGet(`/ratios-ttm?symbol=${symbol}`));
+
+  // Sector, beta, market cap and revenue growth are nice to have. They are
+  // only worth a call once every symbol has the ratios that actually score it.
+  const canAfford = budgetLeft() > 0 && !!ratios;
   const profile = await cachedGet(`p:${symbol}`, TTL_STATIC,
-    () => (ratios ? fmpGet(`/profile?symbol=${symbol}`) : Promise.resolve(null)));
+    () => (canAfford ? fmpGet(`/profile?symbol=${symbol}`) : Promise.resolve(null)));
   const growth = await cachedGet(`g:${symbol}`, TTL_STATIC,
-    () => (ratios ? fmpGet(`/financial-growth?symbol=${symbol}&limit=1`) : Promise.resolve(null)));
+    () => (budgetLeft() > 0 && ratios ? fmpGet(`/financial-growth?symbol=${symbol}&limit=1`) : Promise.resolve(null)));
 
   if (!ratios && !profile) return null;
 
@@ -162,6 +215,9 @@ async function fetchFromFMP(symbol) {
   const usable = [out.pe, out.profitMargin, out.returnOnEquity].some((v) => v !== 0);
   return usable ? out : null;
 }
+
+function beginFmpScan() { _callsThisScan = 0; loadFmpCache(); }
+function endFmpScan() { saveFmpCache(); return _callsThisScan; }
 
 function fmpRateLimitedCount() { return _fmpRateLimited; }
 function resetFmpRateLimited() { _fmpRateLimited = 0; }
@@ -369,7 +425,11 @@ async function fetchFundamentals(symbol) {
     const gotData = pe > 0 || profitMargin !== 0 || eps !== 0;
     // Surfaced so the caller can drop unscored stocks instead of ranking
     // them on all-zero inputs, which reads as a real result.
-    console.log(`[Fund] ${symbol} ${gotData ? '✓' : '⚠'} PE=${pe.toFixed(1)} PM=${profitMargin.toFixed(1)}% ROE=${returnOnEquity.toFixed(1)}%`);
+    // Only the successes are worth a line; a quota-limited scan would
+    // otherwise print 41 identical warnings.
+    if (gotData) {
+      console.log(`[Fund] ${symbol} ✓ PE=${pe.toFixed(1)} PM=${profitMargin.toFixed(1)}% ROE=${returnOnEquity.toFixed(1)}%`);
+    }
 
     return {
       hasFundamentals: gotData,
@@ -538,6 +598,7 @@ async function analyzeLongTermStocks(onProgress) {
 
   // Pre-fetch Yahoo crumb once before looping
   await getYahooCrumb();
+  beginFmpScan();
   console.log(`[Fund] Starting analysis of ${LONG_TERM_UNIVERSE.length} symbols...`);
 
   // Process in batches of 3 (each symbol makes 2 API calls: chart + quoteSummary)
@@ -567,6 +628,10 @@ async function analyzeLongTermStocks(onProgress) {
   }
 
   console.log(`[Fund] Analysis complete: ${results.length}/${LONG_TERM_UNIVERSE.length} stocks scored`);
+  const spent = endFmpScan();
+  if (spent > 0) {
+    console.log(`[Fund] FMP calls this scan: ${spent}/${FMP_MAX_CALLS_PER_SCAN}`);
+  }
   if (fmpRateLimitedCount() > 0) {
     console.log(`[Fund] ${fmpRateLimitedCount()} FMP calls hit the daily free-tier limit. `
       + 'Cached values were used where available; the rest fill in tomorrow.');

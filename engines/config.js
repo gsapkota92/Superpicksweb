@@ -5,10 +5,6 @@
 // fall back to the app's hardcoded values for parity.
 // ═══════════════════════════════════════════════════
 
-const UW_CONFIG = {
-  API_KEY: process.env.UW_API_KEY || 'b1babfa9-5705-4708-a60a-b065059c2ecf',
-  BASE_URL: process.env.UW_BASE_URL || 'https://api.unusualwhales.com/api',
-};
 
 // FMP retired the /api/v3 endpoints for keys issued after Aug 31 2025 —
 // they answer 403 "Legacy Endpoint". Fundamentals use STABLE_URL.
@@ -26,11 +22,5 @@ const YAHOO_HEADERS = {
   Accept: 'application/json',
 };
 
-// Unusual Whales auth headers (Bearer + client id, matching the app).
-const UW_HEADERS = {
-  Accept: 'application/json',
-  Authorization: `Bearer ${UW_CONFIG.API_KEY}`,
-  'UW-CLIENT-API-ID': '100001',
-};
 
-module.exports = { UW_CONFIG, FMP_CONFIG, YAHOO_HEADERS, UW_HEADERS };
+module.exports = { FMP_CONFIG, YAHOO_HEADERS };

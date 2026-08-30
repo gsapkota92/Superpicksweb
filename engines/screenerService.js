@@ -9,28 +9,15 @@
 // fetch. All filter / numeric / result-shaping logic preserved EXACTLY.
 // ═══════════════════════════════════════════════════════════════════
 
-const { UW_CONFIG } = require('./config');
 // Shared UW access layer (required per server architecture; the screener
 // keeps its own private uwFetch below to preserve exact original behavior).
-const unusualWhalesService = require('./unusualWhalesService'); // eslint-disable-line no-unused-vars
 
-const UW_BASE = UW_CONFIG.BASE_URL;
-const UW_HEADERS = {
-  Accept: 'application/json',
-  Authorization: `Bearer ${UW_CONFIG.API_KEY}`,
-  'UW-CLIENT-API-ID': '100001',
-};
 
-async function uwFetch(path) {
-  try {
-    const url = `${UW_BASE}${path}`;
-    const res = await fetch(url, { headers: UW_HEADERS });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json?.data ?? json;
-  } catch {
-    return null;
-  }
+// Unusual Whales has been removed. Every UW-backed screen path already had
+// a fallback — a curated universe priced from Yahoo — so this stub makes
+// that the only path rather than deleting call sites.
+async function uwFetch() {
+  return null;
 }
 
 // ─── Curated fallback universe (used when UW screener returns nothing) ───

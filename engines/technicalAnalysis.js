@@ -9,59 +9,8 @@
 // Scoring math (weights/thresholds/formulas/indicators) is unchanged.
 // ═══════════════════════════════════════════════════════════════════
 
-const { UW_CONFIG } = require('./config');
-
-const UW_BASE = UW_CONFIG.BASE_URL;
-const UW_HEADERS = {
-  Accept: 'application/json',
-  Authorization: `Bearer ${UW_CONFIG.API_KEY}`,
-  'UW-CLIENT-API-ID': '100001',
-};
 
 // ─── UW API Technical Indicator Fetcher ───
-
-async function fetchUWIndicator(symbol, fn, params = {}) {
-  try {
-    const qs = Object.entries(params)
-      .filter(([, v]) => v != null)
-      .map(([k, v]) => `${k}=${v}`)
-      .join('&');
-    const url = `${UW_BASE}/stock/${symbol}/technical-indicator/${fn}${qs ? '?' + qs : ''}`;
-    const res = await fetch(url, { headers: UW_HEADERS });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json?.data ?? json;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Fetch all UW server-side indicators in parallel for a symbol
- * Returns object with all indicator data or nulls for failed ones
- */
-async function fetchAllUWIndicators(symbol) {
-  const [sma20, sma50, ema12, ema26, rsi, macd, bbands, stoch, adx, atr, obv, vwap, cci, willr, aroon, mfi] =
-    await Promise.all([
-      fetchUWIndicator(symbol, 'SMA', { time_period: 20 }),
-      fetchUWIndicator(symbol, 'SMA', { time_period: 50 }),
-      fetchUWIndicator(symbol, 'EMA', { time_period: 12 }),
-      fetchUWIndicator(symbol, 'EMA', { time_period: 26 }),
-      fetchUWIndicator(symbol, 'RSI', { time_period: 14 }),
-      fetchUWIndicator(symbol, 'MACD', { fast_period: 12, slow_period: 26, signal_period: 9 }),
-      fetchUWIndicator(symbol, 'BBANDS', { time_period: 20, nbdevup: 2, nbdevdn: 2 }),
-      fetchUWIndicator(symbol, 'STOCH', { fastk_period: 14, slowk_period: 3, slowd_period: 3 }),
-      fetchUWIndicator(symbol, 'ADX', { time_period: 14 }),
-      fetchUWIndicator(symbol, 'ATR', { time_period: 14 }),
-      fetchUWIndicator(symbol, 'OBV'),
-      fetchUWIndicator(symbol, 'VWAP'),
-      fetchUWIndicator(symbol, 'CCI', { time_period: 20 }),
-      fetchUWIndicator(symbol, 'WILLR', { time_period: 14 }),
-      fetchUWIndicator(symbol, 'AROON', { time_period: 14 }),
-      fetchUWIndicator(symbol, 'MFI', { time_period: 14 }),
-    ]);
-  return { sma20, sma50, ema12, ema26, rsi, macd, bbands, stoch, adx, atr, obv, vwap, cci, willr, aroon, mfi };
-}
 
 /** Extract the latest numeric value from a UW indicator response */
 function uwLatest(data) {

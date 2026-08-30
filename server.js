@@ -10,7 +10,6 @@ const path = require('path');
 const fs = require('fs');
 
 const { runScan } = require('./scanner');
-const { runAlphaScan } = require('./alpha-scanner');
 const { runFundamentalsScan } = require('./fundamentals-scanner');
 const { computeSentiment } = require('./sentiment');
 const screener = require('./engines/screenerService');
@@ -130,7 +129,9 @@ app.get('/api/stats', (req, res) => {
 
 // GET /api/alpha — Alpha Engine smart money picks
 app.get('/api/alpha', (req, res) => {
-  res.json({ timestamp: new Date().toISOString(), count: alpha.length, picks: alpha });
+  // Retired with the Unusual Whales subscription. Kept so existing callers
+  // get a valid empty response rather than a 404.
+  res.json({ timestamp: new Date().toISOString(), count: 0, picks: [], retired: true });
 });
 
 // GET /api/fundamentals — Long-term fundamentals scores
@@ -346,14 +347,27 @@ async function autoScan() {
     // Granny Shots universe at score >= 6 (./engines). The app's POST /api/picks
     // remains available as an optional override/fallback.
     await runScan(() => ({ picks, history, scanLogs, nextId }), persist);
-    await runAlphaScan(() => ({ alpha, alphaHistory, nextId }), persist);
-    await runFundamentalsScan(() => ({ fundamentals, nextId }), persist);
+
+    // Fundamentals move quarterly and FMP's free tier allows ~50 calls a
+    // day, so this does not belong on the 15-minute loop — every tick would
+    // be a chance to spend quota re-reading numbers that have not changed.
+    if (Date.now() - lastFundamentalsScan > FUNDAMENTALS_EVERY_MS) {
+      lastFundamentalsScan = Date.now();
+      await runFundamentalsScan(() => ({ fundamentals, nextId }), persist);
+    }
+
     console.log('[AutoScan] All scans complete.\n');
   } catch (err) {
     console.error('[AutoScan] Error:', err.message);
   }
   scanning = false;
 }
+
+// Alpha depended entirely on Unusual Whales, which the app no longer
+// subscribes to. Running it would fire seven dead endpoints every 15
+// minutes. The route stays so nothing 404s, and answers empty.
+const FUNDAMENTALS_EVERY_MS = 6 * 60 * 60 * 1000;
+let lastFundamentalsScan = 0;
 
 // ═══════════════════════════════════════════════════
 // Serve frontend
