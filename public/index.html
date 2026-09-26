@@ -802,6 +802,25 @@
       background: rgba(148,163,184,0.14); color: var(--text-muted); white-space: nowrap;
     }
     .pnl-reason.stopped { background: rgba(217,79,99,0.16); color: var(--c-loss); }
+    /* ── Regime banner ── */
+    .regime-bar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-left: 3px solid var(--c-strategy);
+      border-radius: 10px; padding: 0.7rem 0.95rem; margin-bottom: 1.25rem;
+      font-size: 0.82rem;
+    }
+    .regime-bar.off { border-left-color: var(--c-loss); }
+    .regime-bar.unknown { border-left-color: var(--text-dim); }
+    .regime-chip {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em;
+      padding: 3px 9px; border-radius: 5px; white-space: nowrap;
+      background: rgba(18,169,127,0.16); color: var(--c-strategy);
+    }
+    .regime-bar.off .regime-chip { background: rgba(217,79,99,0.16); color: var(--c-loss); }
+    .regime-bar.unknown .regime-chip { background: rgba(148,163,184,0.16); color: var(--text-dim); }
+    .regime-detail { color: var(--text-muted); }
+    .regime-detail b { color: var(--text); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -908,6 +927,7 @@
   <!-- ═══════ TECHNICAL TAB ═══════ -->
   <div class="tab-content" id="tab-technical">
     <div class="container">
+      <div class="regime-bar" id="regimeBar" style="display:none"></div>
       <div class="stats-row" id="techStats">
         <div class="stat-card"><div class="stat-label">Active Picks</div><div class="stat-value" id="techPicksCount">--</div></div>
         <div class="stat-card"><div class="stat-label">Avg Score</div><div class="stat-value" id="techAvgScore">--</div></div>
@@ -1702,6 +1722,38 @@ rh.logout()</div>
     });
 
 
+
+    // ── Market regime ──
+    //
+    // Shown on the Technical tab because it is the reason the list is the
+    // length it is. A short list during a downtrend is the filter working;
+    // without this line it just looks like the scan found nothing.
+    function renderRegime(r, minScore) {
+      const el = document.getElementById('regimeBar');
+      if (!el || !r || !r.state) { if (el) el.style.display = 'none'; return; }
+
+      const cls = r.state === 'risk-off' ? 'off' : r.state === 'unknown' ? 'unknown' : '';
+      const chip = r.state === 'risk-off' ? 'RISK OFF' : r.state === 'unknown' ? 'REGIME UNKNOWN' : 'RISK ON';
+
+      let detail;
+      if (r.state === 'unknown') {
+        detail = esc(r.reason || 'Regime could not be determined — nothing is being filtered.');
+      } else {
+        const side = r.state === 'risk-off' ? 'below' : 'above';
+        detail = `SPY <b>$${Number(r.price).toFixed(2)}</b> is ${side} its 200-day average `
+          + `<b>$${Number(r.ma200).toFixed(2)}</b> (<b>${r.pct_vs_ma200 > 0 ? '+' : ''}${r.pct_vs_ma200}%</b>)`
+          + (r.ma200_rising != null ? `, and the average itself is ${r.ma200_rising ? 'rising' : 'falling'}` : '')
+          + '.';
+        if (r.state === 'risk-off') {
+          detail += ` The score needed to qualify is raised to <b>${minScore != null ? minScore : 7}</b>`
+            + ' while this lasts, so expect a much shorter list.';
+        }
+      }
+      el.className = 'regime-bar ' + cls;
+      el.innerHTML = `<span class="regime-chip">${chip}</span><span class="regime-detail">${detail}</span>`;
+      el.style.display = 'flex';
+    }
+
     // ═══════ P&L RECORD ═══════
     //
     // Two charts, both in percentage points on one axis: a running total with
@@ -2113,6 +2165,9 @@ rh.logout()</div>
 
         const strongBuy = picks.filter(p => p.composite_score >= 6).length;
         document.getElementById('techStrongBuy').textContent = strongBuy;
+
+        // The regime comes back on /api/picks alongside the picks themselves.
+        renderRegime(picksData.regime, (statsData.recent_scans || [])[0]?.min_score);
 
         const perf = statsData.performance || {};
         const bench = statsData.vs_benchmark || {};

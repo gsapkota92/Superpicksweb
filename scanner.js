@@ -9,6 +9,7 @@
 const { getAllHoldings } = require('./engines/holdings');
 const { analyzeStocks } = require('./engines/technicalAnalysis');
 const { EQUITY_UNIVERSE, sectorFor } = require('./engines/universe');
+const { getRegime } = require('./engines/regime');
 
 const SUPER_PICK_MIN_SCORE = 6; // matches the app's DashboardScreen threshold
 
@@ -23,6 +24,27 @@ const BENCHMARK = 'SPY';
 // anything, so the stats endpoint excludes them rather than quietly mixing
 // honest and dishonest returns in one average.
 const MEASUREMENT_VERSION = 2;
+
+// ── Universe hygiene ──
+//
+// Applied before scoring, because most bad signals in a scanner come from the
+// universe rather than the maths: a thin, cheap name can print a textbook
+// setup that nobody could actually trade at the price shown.
+//
+// These are floors, not opinions — they are set low enough to remove the
+// untradeable rather than to express a view about what is worth owning.
+const MIN_PRICE = 5;                      // no sub-$5 names
+const MIN_DOLLAR_VOLUME = 20_000_000;     // $20M/day, averaged over 20 sessions
+
+// ── Regime ──
+//
+// When SPY is below its own 200-day average the bar goes up rather than to
+// infinity. A hard cutoff would empty the list and read as a broken app,
+// telling you nothing about which names were holding up; raising the
+// threshold keeps the strongest few visible and cuts the count hard. Every
+// pick carries the regime it was found in, so the record can later answer
+// how risk-off picks actually did.
+const RISK_OFF_SCORE_PENALTY = 1.0;
 
 /**
  * Where the signal is wrong. Entry minus 2x ATR(14), or the low of the last
@@ -73,6 +95,7 @@ function mapPick(holding, r) {
     willr_score: s.williamsR?.score ?? 0, willr_label: s.williamsR?.label || '',
     rsi_value: ind.rsi ?? 0,
     atr: ind.atr ?? null,
+    avg_dollar_volume: ind.avgDollarVolume20 ?? null,
     ...stopFor(price, ind),
   };
 }
@@ -102,15 +125,41 @@ async function runScan(getStore, persist) {
   const taResults = await analyzeStocks(scanList, { batchSize: 8 });
   const benchPrice = taResults[BENCHMARK]?.price ?? null;
 
-  const picks = symbols
+  // The regime is read once per scan, off its own cached SPY history, and
+  // fails open: an 'unknown' answer filters nothing.
+  const regime = await getRegime();
+  const riskOff = regime.state === 'risk-off';
+  const minScore = SUPER_PICK_MIN_SCORE + (riskOff ? RISK_OFF_SCORE_PENALTY : 0);
+
+  const scored = symbols
     .filter((sym) => sym !== BENCHMARK)
     .filter((sym) => taResults[sym] && typeof taResults[sym].compositeScore === 'number')
-    .map((sym) => mapPick(holdingBySymbol[sym], taResults[sym]))
-    .filter((p) => p.composite_score >= SUPER_PICK_MIN_SCORE)
+    .map((sym) => mapPick(holdingBySymbol[sym], taResults[sym]));
+
+  // Hygiene first, so the counts below describe what was actually eligible.
+  const rejected = { price: 0, liquidity: 0, unknown_liquidity: 0 };
+  const eligible = scored.filter((p) => {
+    if (!(p.price >= MIN_PRICE)) { rejected.price++; return false; }
+    if (p.avg_dollar_volume == null) { rejected.unknown_liquidity++; return true; } // fail open
+    if (p.avg_dollar_volume < MIN_DOLLAR_VOLUME) { rejected.liquidity++; return false; }
+    return true;
+  });
+
+  const picks = eligible
+    .filter((p) => p.composite_score >= minScore)
+    .map((p) => ({ ...p, regime: regime.state }))
     .sort((a, b) => b.composite_score - a.composite_score);
 
+  // What the bar cost, so a short list is explicable rather than mysterious.
+  const wouldHaveQualified = riskOff
+    ? eligible.filter((p) => p.composite_score >= SUPER_PICK_MIN_SCORE).length
+    : picks.length;
+
   const scanTimeMs = Date.now() - startTime;
-  console.log(`[Scanner] Complete: ${symbols.length} analyzed, ${picks.length} picks (${(scanTimeMs / 1000).toFixed(1)}s)`);
+  console.log(`[Scanner] Complete: ${symbols.length} analyzed, ${picks.length} picks `
+    + `(${(scanTimeMs / 1000).toFixed(1)}s) — regime ${regime.state}`
+    + (riskOff ? `, bar raised to ${minScore} (${wouldHaveQualified} would have passed at ${SUPER_PICK_MIN_SCORE})` : '')
+    + `; filtered out ${rejected.price} on price, ${rejected.liquidity} on liquidity`);
 
   // ── Update store (same bookkeeping as before) ──
   const store = getStore();
@@ -147,6 +196,11 @@ async function runScan(getStore, persist) {
         stop: p.stop ?? null,
         stop_basis: p.stop_basis ?? null,
         atr_at_entry: p.atr ?? null,
+        // Written down at entry so the record can later answer how picks
+        // found in a risk-off tape actually did — the question the filter is
+        // a bet on, and one you can only settle with data you kept.
+        regime_at_entry: regime.state,
+        dollar_volume_at_entry: p.avg_dollar_volume ?? null,
         bench_symbol: BENCHMARK,
         bench_entry_price: benchPrice,
         bench_exit_price: null,
@@ -236,11 +290,23 @@ async function runScan(getStore, persist) {
   store.scanLogs.push({
     batch_id: batchId, total_scanned: symbols.length, picks_found: picks.length,
     avg_score: Math.round(avgScore * 100) / 100, scan_time_ms: scanTimeMs, created_at: now,
+    regime: regime.state,
+    min_score: minScore,
+    filtered_price: rejected.price,
+    filtered_liquidity: rejected.liquidity,
   });
   if (store.scanLogs.length > 100) store.scanLogs.splice(0, store.scanLogs.length - 100);
 
   persist();
-  return { total: symbols.length, picks: picks.length, timeMs: scanTimeMs };
+  return {
+    total: symbols.length,
+    picks: picks.length,
+    timeMs: scanTimeMs,
+    regime: regime.state,
+    minScore,
+    filtered: rejected,
+    wouldHaveQualified,
+  };
 }
 
 module.exports = { runScan };

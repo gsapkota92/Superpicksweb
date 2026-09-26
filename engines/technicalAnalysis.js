@@ -749,6 +749,21 @@ async function analyzeStock(symbol) {
         stochK: currentK != null ? Math.round(currentK * 10) / 10 : null,
         stochD: currentD != null ? Math.round(currentD * 10) / 10 : null,
         atr: currentATR != null ? Math.round(currentATR * 100) / 100 : null,
+        // Liquidity, for the universe filter in scanner.js. A thin name can
+        // print a perfect setup that nobody could actually trade, and most
+        // bad signals in a scanner come from the universe rather than the
+        // maths.
+        avgVolume20: (() => {
+          const v = volumes.slice(-20).filter((x) => x != null && x > 0);
+          return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+        })(),
+        avgDollarVolume20: (() => {
+          const rows = candles.slice(-20).filter((c) => c.volume > 0 && c.close > 0);
+          if (!rows.length) return null;
+          const dv = rows.reduce((a, c) => a + c.volume * c.close, 0) / rows.length;
+          return Math.round(dv);
+        })(),
+
         // Lowest low of the last 10 sessions — the "recent swing low" a stop
         // sits under. Kept here so the scanner can price an invalidation
         // level without re-fetching the candles.

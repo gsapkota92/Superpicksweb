@@ -17,6 +17,7 @@ const sectorMap = require('./engines/sectorMap');
 const screener = require('./engines/screenerService');
 const { createStore, seedFromFiles } = require('./engines/store');
 const { buildPnL, toCSV } = require('./engines/pnl');
+const { getRegime, cachedRegime } = require('./engines/regime');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -105,7 +106,34 @@ function requireApiKey(req, res, next) {
 // GET /api/picks — Current live picks
 app.get('/api/picks', (req, res) => {
   const sorted = [...picks].sort((a, b) => b.composite_score - a.composite_score);
-  res.json({ timestamp: new Date().toISOString(), count: sorted.length, picks: sorted });
+  // The regime rides along so a short list is explicable on the spot rather
+  // than looking like a scan that found nothing.
+  res.json({
+    timestamp: new Date().toISOString(),
+    count: sorted.length,
+    regime: cachedRegime() || null,
+    picks: sorted,
+  });
+});
+
+// GET /api/regime — is SPY above its own 200-day average, and what that costs.
+app.get('/api/regime', async (req, res) => {
+  try {
+    const r = await getRegime({ force: req.query.force === '1' });
+    const last = scanLogs[scanLogs.length - 1] || {};
+    res.json({
+      ...r,
+      applied: {
+        min_score: last.min_score ?? null,
+        picks_found: last.picks_found ?? null,
+        filtered_price: last.filtered_price ?? null,
+        filtered_liquidity: last.filtered_liquidity ?? null,
+        as_of_scan: last.created_at ?? null,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/signals — Trading signals for bots / Robinhood
