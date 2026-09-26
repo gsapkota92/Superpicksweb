@@ -728,6 +728,80 @@
       .sec-meta { margin-left: 0; text-align: left; width: 100%; }
       .sec-cell { min-width: calc(33.333% - 4px); }
     }
+    .measure-note {
+      font-size: 0.75rem; color: var(--text-dim); line-height: 1.5;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-left: 3px solid var(--text-dim);
+      border-radius: 8px; padding: 0.7rem 0.9rem; margin: -0.5rem 0 1.5rem;
+    }
+    /* ═══════ P&L tab ═══════ */
+    /* Chart slots, validated with the dataviz palette checker in both modes:
+       strategy / SPY separate at ΔE 19 under deuteranopia, and the loss pole
+       sits ΔE 22+ from the SPY blue. Both lines are also direct-labelled, so
+       identity never rests on hue alone. */
+    :root {
+      --c-strategy: #12a97f;
+      --c-bench:    #5d8ff5;
+      --c-loss:     #d94f63;
+      --c-grid:     rgba(148,163,184,0.16);
+      --c-zero:     rgba(148,163,184,0.42);
+    }
+    .pnl-hero {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.3rem 1.5rem; margin-bottom: 1rem;
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem 1.5rem;
+    }
+    .pnl-hero-value {
+      font-family: 'JetBrains Mono', monospace; font-size: 2.6rem;
+      font-weight: 700; line-height: 1;
+    }
+    .pnl-hero-label {
+      font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.07em; font-weight: 700;
+    }
+    .pnl-hero-sub { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; text-align: right; line-height: 1.6; }
+
+    .pnl-chart-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.1rem 0.6rem; margin-bottom: 1rem;
+    }
+    .pnl-chart-head {
+      display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 0.4rem;
+    }
+    .pnl-chart-title { font-size: 0.9rem; font-weight: 700; }
+    .pnl-chart-note { font-size: 0.72rem; color: var(--text-dim); }
+    .pnl-legend { display: flex; gap: 14px; margin-left: auto; flex-wrap: wrap; }
+    .pnl-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-muted); }
+    .pnl-swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+    .pnl-svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+    .pnl-tip {
+      position: fixed; pointer-events: none; z-index: 60; opacity: 0;
+      transition: opacity 0.12s; background: var(--bg-card-solid);
+      border: 1px solid var(--border-strong); border-radius: 8px;
+      padding: 8px 10px; font-size: 0.75rem; line-height: 1.6;
+      box-shadow: 0 12px 30px -12px rgba(0,0,0,0.6); white-space: nowrap;
+    }
+    .pnl-tip b { font-family: 'JetBrains Mono', monospace; }
+    .pnl-tip-row { display: flex; align-items: center; gap: 6px; }
+
+    .pnl-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+    .pnl-btn {
+      display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+      font: inherit; font-size: 0.78rem; font-weight: 600; padding: 7px 13px;
+      border-radius: 9px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-muted); text-decoration: none;
+    }
+    .pnl-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .pnl-range { margin-left: auto; display: flex; gap: 4px; }
+
+    .pnl-pos { color: var(--c-strategy); }
+    .pnl-neg { color: var(--c-loss); }
+    .pnl-reason {
+      font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;
+      background: rgba(148,163,184,0.14); color: var(--text-muted); white-space: nowrap;
+    }
+    .pnl-reason.stopped { background: rgba(217,79,99,0.16); color: var(--c-loss); }
   </style>
 </head>
 <body>
@@ -757,6 +831,7 @@
   <nav class="nav-tabs">
     <button class="nav-tab active" data-tab="overview">Overview</button>
     <button class="nav-tab" data-tab="technical">Technical</button>
+    <button class="nav-tab" data-tab="pnl">P&amp;L</button>
     <button class="nav-tab" data-tab="sectors">Sectors</button>
     <button class="nav-tab" data-tab="longterm">Long Term</button>
     <button class="nav-tab" data-tab="screener">Screener</button>
@@ -838,8 +913,10 @@
         <div class="stat-card"><div class="stat-label">Avg Score</div><div class="stat-value" id="techAvgScore">--</div></div>
         <div class="stat-card"><div class="stat-label">Strong Buy</div><div class="stat-value" id="techStrongBuy" style="color:var(--green)">--</div></div>
         <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="techWinRate">--</div><div class="stat-sub" id="techTradeCount"></div></div>
-        <div class="stat-card"><div class="stat-label">Avg Return</div><div class="stat-value" id="techAvgReturn">--</div></div>
+        <div class="stat-card"><div class="stat-label">Avg Return</div><div class="stat-value" id="techAvgReturn">--</div><div class="stat-sub" id="techAvgReturnSub"></div></div>
+        <div class="stat-card"><div class="stat-label">vs SPY</div><div class="stat-value" id="techExcess">--</div><div class="stat-sub" id="techExcessSub"></div></div>
       </div>
+      <div id="techMeasureNote" class="measure-note" style="display:none"></div>
 
       <div class="section-title">Current Technical Signals</div>
       <div class="picks-table-wrap">
@@ -893,6 +970,86 @@
         <div class="empty-title">No scan yet</div>
         <p>The rotation map fills in at the next checkpoint &mdash; 10:00&nbsp;AM, 1:00&nbsp;PM and 4:00&nbsp;PM ET for stocks, every two hours for crypto.</p>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══════ P&L TAB ═══════ -->
+  <div class="tab-content" id="tab-pnl">
+    <div class="container">
+      <div class="pnl-hero">
+        <div>
+          <div class="pnl-hero-label">Cumulative P&amp;L</div>
+          <div class="pnl-hero-value" id="pnlHero">--</div>
+        </div>
+        <div>
+          <div class="pnl-hero-label">vs SPY</div>
+          <div class="pnl-hero-value" style="font-size:1.6rem" id="pnlHeroExcess">--</div>
+        </div>
+        <div class="pnl-hero-sub" id="pnlHeroSub">Loading&hellip;</div>
+      </div>
+
+      <div class="pnl-actions">
+        <a class="pnl-btn" id="pnlCsv" href="/api/pnl.csv" download>&#x2193; Export CSV</a>
+        <div class="pnl-range" id="pnlRange">
+          <button class="sec-period active" data-from="">All time</button>
+          <button class="sec-period" data-from="ytd">YTD</button>
+          <button class="sec-period" data-from="90">90 days</button>
+          <button class="sec-period" data-from="30">30 days</button>
+        </div>
+      </div>
+
+      <div class="stats-row" id="pnlStats">
+        <div class="stat-card"><div class="stat-label">Closed Trades</div><div class="stat-value" id="pnlTrades">--</div><div class="stat-sub" id="pnlTradesSub"></div></div>
+        <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="pnlWinRate">--</div><div class="stat-sub" id="pnlWinRateSub"></div></div>
+        <div class="stat-card"><div class="stat-label">Avg Win / Loss</div><div class="stat-value" id="pnlAvgWL">--</div><div class="stat-sub">per closed trade</div></div>
+        <div class="stat-card"><div class="stat-label">Profit Factor</div><div class="stat-value" id="pnlPF">--</div><div class="stat-sub">gross wins ÷ gross losses</div></div>
+        <div class="stat-card"><div class="stat-label">Best / Worst</div><div class="stat-value" id="pnlBW" style="font-size:1.1rem">--</div><div class="stat-sub" id="pnlHold"></div></div>
+      </div>
+
+      <div class="pnl-chart-card">
+        <div class="pnl-chart-head">
+          <span class="pnl-chart-title">Running total</span>
+          <span class="pnl-chart-note">percentage points, each closed signal counted once</span>
+          <span class="pnl-legend">
+            <span><i class="pnl-swatch" style="background:var(--c-strategy)"></i>Super Picks</span>
+            <span><i class="pnl-swatch" style="background:var(--c-bench)"></i>SPY, same windows</span>
+          </span>
+        </div>
+        <div id="pnlCurveWrap"></div>
+      </div>
+
+      <div class="pnl-chart-card">
+        <div class="pnl-chart-head">
+          <span class="pnl-chart-title">By month</span>
+          <span class="pnl-chart-note">points banked in the month each trade closed</span>
+        </div>
+        <div id="pnlMonthsWrap"></div>
+      </div>
+
+      <div class="section-title">Closed trade ledger</div>
+      <div class="picks-table-wrap">
+        <table class="picks-table" id="pnlTable">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Entry</th>
+              <th>Exit</th>
+              <th>Points</th>
+              <th class="hide-mobile">SPY</th>
+              <th class="hide-mobile">vs SPY</th>
+              <th class="hide-mobile">Held</th>
+              <th class="hide-mobile">Closed by</th>
+            </tr>
+          </thead>
+          <tbody id="pnlBody"></tbody>
+        </table>
+        <div id="pnlEmpty" class="empty-state" style="display:none">
+          <div class="empty-icon">&#x1F4D2;</div>
+          <div class="empty-title">No closed trades yet</div>
+          <p>Signals are recorded when they open and evaluated when they close. Nothing has closed under the corrected bookkeeping yet, so there is nothing here to total &mdash; that is the honest state, not an error.</p>
+        </div>
+      </div>
+      <div class="measure-note" style="margin-top:1rem">Results are percentage points, summed, with every closed signal counted once at equal weight and no compounding. That weights a 2% move on a $20 stock the same as on a $500 one, and the scanner often holds twenty-odd positions at once — so this is a scorecard for the signals, not a statement for an account anyone could have run. SPY is summed the same way over the same holding windows.</div>
     </div>
   </div>
 
@@ -1245,6 +1402,7 @@ rh.logout()</div>
     const tabLoaded = {
       overview: false,
       technical: false,
+      pnl: false,
       sectors: false,
       alpha: false,
       longterm: false,
@@ -1268,6 +1426,7 @@ rh.logout()</div>
       if (!tabLoaded[tabName]) {
         switch (tabName) {
           case 'technical': loadTechnical(); break;
+          case 'pnl': loadPnl(); break;
           case 'sectors': loadSectors(); break;
           case 'alpha': loadAlpha(); break;
           case 'longterm': loadLongTerm(); break;
@@ -1542,6 +1701,273 @@ rh.logout()</div>
       loadSectors(true);
     });
 
+
+    // ═══════ P&L RECORD ═══════
+    //
+    // Two charts, both in percentage points on one axis: a running total with
+    // SPY drawn on the same scale, and a per-month bar. Colors come from the
+    // three validated chart slots in CSS; every series is also direct-labelled
+    // so identity never depends on hue alone.
+
+    const pnlState = { from: '', data: null };
+
+    function pnlFmt(v, dp) {
+      if (v == null || isNaN(v)) return '--';
+      const d = dp == null ? 1 : dp;
+      return (v > 0 ? '+' : '') + Number(v).toFixed(d);
+    }
+    function pnlCls(v) { return v == null ? '' : (v >= 0 ? 'pnl-pos' : 'pnl-neg'); }
+    function pnlShortDate(iso) {
+      if (!iso) return '--';
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function pnlFromParam() {
+      const f = pnlState.from;
+      if (!f) return '';
+      if (f === 'ytd') return new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+      const days = parseInt(f, 10);
+      if (!isNaN(days)) return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+      return '';
+    }
+
+    async function loadPnl() {
+      const from = pnlFromParam();
+      const qs = from ? `?from=${from}` : '';
+      document.getElementById('pnlCsv').href = `${API_BASE}/api/pnl.csv${qs}`;
+      try {
+        const res = await fetch(`${API_BASE}/api/pnl${qs}`);
+        pnlState.data = await res.json();
+      } catch (e) {
+        pnlState.data = null;
+      }
+      renderPnl();
+    }
+
+    function renderPnl() {
+      const d = pnlState.data;
+      const t = (d && d.totals) || {};
+      const n = t.closed_trades || 0;
+
+      const hero = document.getElementById('pnlHero');
+      hero.textContent = n ? pnlFmt(t.total_points) : '--';
+      hero.className = 'pnl-hero-value ' + (n ? pnlCls(t.total_points) : '');
+
+      const ex = document.getElementById('pnlHeroExcess');
+      ex.textContent = t.excess_points != null ? pnlFmt(t.excess_points) : '--';
+      ex.className = 'pnl-hero-value ' + (t.excess_points != null ? pnlCls(t.excess_points) : '');
+
+      document.getElementById('pnlHeroSub').innerHTML = n
+        ? `${n} closed trade${n === 1 ? '' : 's'} &middot; SPY ${pnlFmt(t.spy_points)} over the same windows<br>`
+          + `${esc(String(t.first_close || '').slice(0, 10))} &ndash; ${esc(String(t.last_close || '').slice(0, 10))}`
+        : 'Nothing has closed yet';
+
+      document.getElementById('pnlTrades').textContent = n || '--';
+      document.getElementById('pnlTradesSub').textContent =
+        n ? `${t.winners} up, ${t.losers} down` : '';
+      document.getElementById('pnlWinRate').textContent = t.win_rate != null ? t.win_rate + '%' : '--';
+      document.getElementById('pnlWinRateSub').textContent =
+        t.beat_spy_rate != null ? `beat SPY ${t.beat_spy_rate}%` : '';
+      document.getElementById('pnlAvgWL').textContent =
+        n ? `${pnlFmt(t.avg_win)} / ${pnlFmt(t.avg_loss)}` : '--';
+      document.getElementById('pnlPF').textContent = t.profit_factor != null ? t.profit_factor : '--';
+      document.getElementById('pnlBW').textContent =
+        n ? `${pnlFmt(t.best)} / ${pnlFmt(t.worst)}` : '--';
+      document.getElementById('pnlHold').textContent =
+        t.avg_hold_days != null ? `held ${t.avg_hold_days}d avg` : '';
+
+      document.getElementById('pnlCurveWrap').innerHTML =
+        (d && d.curve && d.curve.length) ? pnlCurveSVG(d.curve) : pnlNoChart('No closed trades to plot yet.');
+      document.getElementById('pnlMonthsWrap').innerHTML =
+        (d && d.by_month && d.by_month.length) ? pnlMonthsSVG(d.by_month) : pnlNoChart('No months with closed trades yet.');
+
+      renderPnlTable(d);
+      pnlBindHover();
+    }
+
+    function pnlNoChart(msg) {
+      return `<div style="padding:2rem 0;text-align:center;color:var(--text-dim);font-size:0.82rem">${esc(msg)}</div>`;
+    }
+
+    // ── Running total: two lines, one axis, shared units ──
+    function pnlCurveSVG(curve) {
+      const W = 860, H = 260, L = 46, R = 74, T = 14, B = 28;
+      const iw = W - L - R, ih = H - T - B;
+
+      const xs = curve.map((_, i) => i);
+      const ys = curve.flatMap((c) => [c.cum_points, c.cum_spy_points]);
+      let lo = Math.min(0, ...ys), hi = Math.max(0, ...ys);
+      if (hi === lo) { hi = lo + 1; }
+      // Round the axis out to a human step (1/2/5 x 10^n) so the labels read
+      // 20, 40, 60 rather than whatever the extremes happened to be.
+      const span = (hi - lo) * 1.24 || 1;
+      const raw = span / 4;
+      const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+      const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= raw) || 10 * mag;
+      lo = Math.floor(lo / step) * step;
+      hi = Math.ceil(hi / step) * step;
+      const nTicks = Math.max(2, Math.round((hi - lo) / step));
+
+      const px = (i) => L + (curve.length === 1 ? iw / 2 : (i / (curve.length - 1)) * iw);
+      const py = (v) => T + ih - ((v - lo) / (hi - lo)) * ih;
+
+      // Recessive grid: four horizontal rules and a stronger zero line.
+      const ticks = [];
+      for (let k = 0; k <= nTicks; k++) {
+        const v = lo + step * k;
+        ticks.push(`<line x1="${L}" y1="${py(v).toFixed(1)}" x2="${L + iw}" y2="${py(v).toFixed(1)}" stroke="var(--c-grid)" stroke-width="1"/>`
+          + `<text x="${L - 8}" y="${(py(v) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-dim)" font-family="'JetBrains Mono',monospace">${v.toFixed(0)}</text>`);
+      }
+      const zero = (lo < 0 && hi > 0)
+        ? `<line x1="${L}" y1="${py(0).toFixed(1)}" x2="${L + iw}" y2="${py(0).toFixed(1)}" stroke="var(--c-zero)" stroke-width="1" stroke-dasharray="3 3"/>` : '';
+
+      const path = (key) => curve.map((c, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)},${py(c[key]).toFixed(1)}`).join(' ');
+
+      const last = curve[curve.length - 1];
+      // Direct labels at the line ends — the secondary encoding that keeps
+      // the two series distinguishable without relying on hue.
+      const label = (v, color, text) => {
+        const y = Math.max(T + 8, Math.min(T + ih - 2, py(v)));
+        return `<text x="${L + iw + 8}" y="${(y + 4).toFixed(1)}" font-size="11" font-weight="700" fill="${color}" font-family="'JetBrains Mono',monospace">${text}</text>`;
+      };
+
+      const dots = curve.map((c, i) =>
+        `<circle class="pnl-pt" data-i="${i}" cx="${px(i).toFixed(1)}" cy="${py(c.cum_points).toFixed(1)}" r="4"`
+        + ` fill="var(--c-strategy)" stroke="var(--bg-card-solid)" stroke-width="2"/>`).join('');
+
+      return `<svg class="pnl-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"
+        aria-label="Running total of closed signals in percentage points, with SPY over the same windows">
+        ${ticks.join('')}${zero}
+        <path d="${path('cum_spy_points')}" fill="none" stroke="var(--c-bench)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 4"/>
+        <path d="${path('cum_points')}" fill="none" stroke="var(--c-strategy)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}
+        ${label(last.cum_points, 'var(--c-strategy)', pnlFmt(last.cum_points))}
+        ${label(last.cum_spy_points, 'var(--c-bench)', 'SPY ' + pnlFmt(last.cum_spy_points))}
+        <rect id="pnlHitLayer" x="${L}" y="${T}" width="${iw}" height="${ih}" fill="transparent" style="cursor:crosshair"/>
+        <line id="pnlCross" x1="0" y1="${T}" x2="0" y2="${T + ih}" stroke="var(--c-zero)" stroke-width="1" opacity="0"/>
+      </svg>`;
+    }
+
+    // ── Monthly: diverging bars around zero ──
+    function pnlMonthsSVG(months) {
+      const W = 860, H = 180, L = 46, R = 16, T = 12, B = 30;
+      const iw = W - L - R, ih = H - T - B;
+      const vals = months.flatMap((m) => [m.points, 0]);
+      const mag = Math.max(1, ...vals.map(Math.abs));
+      const lo = -mag * 1.15, hi = mag * 1.15;
+      const py = (v) => T + ih - ((v - lo) / (hi - lo)) * ih;
+      const slot = iw / months.length;
+      const bw = Math.min(46, slot * 0.6);
+
+      const bars = months.map((m, i) => {
+        const cx = L + slot * i + slot / 2;
+        const y0 = py(0), y1 = py(m.points);
+        const top = Math.min(y0, y1), h = Math.max(2, Math.abs(y1 - y0));
+        const color = m.points >= 0 ? 'var(--c-strategy)' : 'var(--c-loss)';
+        // 4px rounded data-end, square against the baseline.
+        const r = Math.min(4, h);
+        const up = m.points >= 0;
+        const d = up
+          ? `M${cx - bw / 2},${y0} L${cx - bw / 2},${top + r} Q${cx - bw / 2},${top} ${cx - bw / 2 + r},${top} L${cx + bw / 2 - r},${top} Q${cx + bw / 2},${top} ${cx + bw / 2},${top + r} L${cx + bw / 2},${y0} Z`
+          : `M${cx - bw / 2},${y0} L${cx - bw / 2},${top + h - r} Q${cx - bw / 2},${top + h} ${cx - bw / 2 + r},${top + h} L${cx + bw / 2 - r},${top + h} Q${cx + bw / 2},${top + h} ${cx + bw / 2},${top + h - r} L${cx + bw / 2},${y0} Z`;
+        const lblY = up ? top - 6 : top + h + 13;
+        return `<path class="pnl-bar" data-m="${i}" d="${d}" fill="${color}"/>`
+          + `<text x="${cx}" y="${lblY}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--text-muted)" font-family="'JetBrains Mono',monospace">${pnlFmt(m.points)}</text>`
+          + `<text x="${cx}" y="${T + ih + 20}" text-anchor="middle" font-size="10" fill="var(--text-dim)">${esc(m.month)}</text>`;
+      }).join('');
+
+      return `<svg class="pnl-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"
+        aria-label="Percentage points by month, above and below zero">
+        <line x1="${L}" y1="${py(0).toFixed(1)}" x2="${L + iw}" y2="${py(0).toFixed(1)}" stroke="var(--c-zero)" stroke-width="1"/>
+        ${bars}
+      </svg>`;
+    }
+
+    function renderPnlTable(d) {
+      const rows = (d && d.trades) || [];
+      const tbl = document.getElementById('pnlTable');
+      const empty = document.getElementById('pnlEmpty');
+      if (!rows.length) {
+        tbl.style.display = 'none'; empty.style.display = 'block';
+        document.getElementById('pnlBody').innerHTML = '';
+        return;
+      }
+      tbl.style.display = 'table'; empty.style.display = 'none';
+      document.getElementById('pnlBody').innerHTML = rows.map((r) => `
+        <tr>
+          <td>
+            <div class="symbol-cell">
+              <span class="symbol-ticker">${esc(r.symbol)}</span>
+              <span class="symbol-name">${esc(r.name || '')}</span>
+            </div>
+          </td>
+          <td class="price-cell">${esc(pnlShortDate(r.entry_date))}<br><span style="color:var(--text-dim);font-size:0.78rem">$${Number(r.entry_price).toFixed(2)}</span></td>
+          <td class="price-cell">${esc(pnlShortDate(r.exit_date))}<br><span style="color:var(--text-dim);font-size:0.78rem">$${Number(r.exit_price).toFixed(2)}</span></td>
+          <td class="price-cell ${pnlCls(r.points)}" style="font-weight:700">${pnlFmt(r.points)}</td>
+          <td class="price-cell hide-mobile" style="color:var(--text-muted)">${r.spy_points == null ? '--' : pnlFmt(r.spy_points)}</td>
+          <td class="price-cell hide-mobile ${pnlCls(r.excess_points)}">${r.excess_points == null ? '--' : pnlFmt(r.excess_points)}</td>
+          <td class="hide-mobile" style="color:var(--text-muted)">${r.hold_days == null ? '--' : r.hold_days + 'd'}</td>
+          <td class="hide-mobile"><span class="pnl-reason ${r.exit_reason === 'stopped-out' ? 'stopped' : ''}">${esc(r.exit_reason || '--')}</span></td>
+        </tr>`).join('');
+    }
+
+    // ── Crosshair + tooltip on the running total ──
+    let pnlTipEl = null;
+    function pnlBindHover() {
+      if (!pnlTipEl) {
+        pnlTipEl = document.createElement('div');
+        pnlTipEl.className = 'pnl-tip';
+        document.body.appendChild(pnlTipEl);
+      }
+      const hit = document.getElementById('pnlHitLayer');
+      const cross = document.getElementById('pnlCross');
+      const pts = [...document.querySelectorAll('.pnl-pt')];
+      const curve = (pnlState.data && pnlState.data.curve) || [];
+      if (!hit || !pts.length) { pnlTipEl.style.opacity = 0; return; }
+
+      const show = (ev) => {
+        // Nearest point by screen distance — the hit target is the whole plot,
+        // which is far more forgiving than the 4px dots.
+        let best = 0, bestD = Infinity;
+        pts.forEach((p, i) => {
+          const r = p.getBoundingClientRect();
+          const dx = Math.abs((r.left + r.width / 2) - ev.clientX);
+          if (dx < bestD) { bestD = dx; best = i; }
+        });
+        const c = curve[best];
+        if (!c) return;
+        const r = pts[best].getBoundingClientRect();
+        cross.setAttribute('x1', pts[best].getAttribute('cx'));
+        cross.setAttribute('x2', pts[best].getAttribute('cx'));
+        cross.setAttribute('opacity', '1');
+        pts.forEach((p, i) => p.setAttribute('r', i === best ? 6 : 4));
+        pnlTipEl.innerHTML =
+          `<div style="font-weight:700;margin-bottom:3px">${esc(c.symbol)} &middot; closed ${esc(pnlShortDate(c.date))}</div>`
+          + `<div class="pnl-tip-row"><i class="pnl-swatch" style="background:var(--c-strategy)"></i>this trade <b>${pnlFmt(c.points)}</b></div>`
+          + `<div class="pnl-tip-row"><i class="pnl-swatch" style="background:var(--c-strategy)"></i>running <b>${pnlFmt(c.cum_points)}</b></div>`
+          + `<div class="pnl-tip-row"><i class="pnl-swatch" style="background:var(--c-bench)"></i>SPY running <b>${pnlFmt(c.cum_spy_points)}</b></div>`;
+        pnlTipEl.style.opacity = 1;
+        const tw = pnlTipEl.offsetWidth, th = pnlTipEl.offsetHeight;
+        pnlTipEl.style.left = Math.min(window.innerWidth - tw - 12, Math.max(8, r.left + 14)) + 'px';
+        pnlTipEl.style.top = Math.max(8, r.top - th - 10) + 'px';
+      };
+
+      hit.addEventListener('mousemove', show);
+      hit.addEventListener('mouseleave', () => {
+        pnlTipEl.style.opacity = 0;
+        cross.setAttribute('opacity', '0');
+        pts.forEach((p) => p.setAttribute('r', 4));
+      });
+    }
+
+    document.getElementById('pnlRange').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      pnlState.from = b.dataset.from || '';
+      document.querySelectorAll('#pnlRange button').forEach((x) => x.classList.toggle('active', x === b));
+      loadPnl();
+    });
+
     // ═══════ OVERVIEW ═══════
 
     async function loadOverview() {
@@ -1689,14 +2115,44 @@ rh.logout()</div>
         document.getElementById('techStrongBuy').textContent = strongBuy;
 
         const perf = statsData.performance || {};
-        document.getElementById('techWinRate').textContent =
-          perf.total_trades > 0 ? perf.win_rate + '%' : '--';
+        const bench = statsData.vs_benchmark || {};
+        const legacy = statsData.excluded_legacy || {};
+        const n = perf.total_trades || 0;
+
+        document.getElementById('techWinRate').textContent = n > 0 ? perf.win_rate + '%' : '--';
         document.getElementById('techTradeCount').textContent =
-          perf.total_trades > 0 ? `${perf.total_trades} closed trades` : '';
+          n > 0 ? `${n} closed${perf.stopped_out ? `, ${perf.stopped_out} stopped out` : ''}` : 'none closed yet';
 
         const avgRetEl = document.getElementById('techAvgReturn');
-        avgRetEl.textContent = perf.total_trades > 0 ? formatReturn(perf.avg_return) : '--';
-        avgRetEl.className = 'stat-value ' + (perf.avg_return >= 0 ? 'change-positive' : 'change-negative');
+        avgRetEl.textContent = n > 0 ? formatReturn(perf.avg_return) : '--';
+        avgRetEl.className = 'stat-value ' + (n > 0 && perf.avg_return >= 0 ? 'change-positive' : n > 0 ? 'change-negative' : '');
+        document.getElementById('techAvgReturnSub').textContent =
+          n > 0 ? `worst ${formatReturn(perf.worst_trade)}` : '';
+
+        // The only figure here that says whether the picks were worth acting
+        // on. A positive average return during a rising market is not a result.
+        const exEl = document.getElementById('techExcess');
+        const nb = bench.trades_with_benchmark || 0;
+        exEl.textContent = nb > 0 ? formatReturn(bench.avg_excess_return) : '--';
+        exEl.className = 'stat-value ' + (nb > 0 && bench.avg_excess_return >= 0 ? 'change-positive' : nb > 0 ? 'change-negative' : '');
+        document.getElementById('techExcessSub').textContent =
+          nb > 0 ? `beat SPY on ${bench.beat_benchmark_rate}% of ${nb}` : 'awaiting closed trades';
+
+        // Say plainly when there is nothing to report, rather than showing a
+        // zero that reads like a measured result.
+        const noteEl = document.getElementById('techMeasureNote');
+        const notes = [];
+        if (n === 0) {
+          notes.push('No closed trades recorded yet under the corrected bookkeeping. '
+            + 'Signals are logged at generation with entry, stop and the SPY price at that moment, '
+            + 'then evaluated when they close — so these numbers stay empty until real outcomes exist.');
+        }
+        if (legacy.count) {
+          notes.push(`${legacy.count} earlier record${legacy.count === 1 ? ' is' : 's are'} excluded: `
+            + 'they were closed at their peak price by the previous scanner, so their returns could never be negative.');
+        }
+        noteEl.innerHTML = notes.map(esc).join('<br><br>');
+        noteEl.style.display = notes.length ? 'block' : 'none';
 
         if (picks.length === 0) {
           document.getElementById('techEmpty').style.display = 'block';

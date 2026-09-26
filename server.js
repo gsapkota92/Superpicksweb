@@ -15,43 +15,75 @@ const { computeSentiment } = require('./sentiment');
 const { runSectorScan, startSectorSchedulers, sectorStatus } = require('./sector-scanner');
 const sectorMap = require('./engines/sectorMap');
 const screener = require('./engines/screenerService');
+const { createStore, seedFromFiles } = require('./engines/store');
+const { buildPnL, toCSV } = require('./engines/pnl');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || 'sp-dev-key-change-me';
 
-// ── JSON File Database (no native deps — works on Render free tier) ──
+// ── Persistence ──
+//
+// Postgres when DATABASE_URL is set, JSON files otherwise. Render's free tier
+// wipes the container filesystem on every deploy, so on the JSON path the
+// forward-recorded history does not survive a redeploy — see engines/store.js.
 const DB_PATH = path.join(__dirname, 'data');
-if (!fs.existsSync(DB_PATH)) fs.mkdirSync(DB_PATH, { recursive: true });
+const store = createStore({ dir: DB_PATH, databaseUrl: process.env.DATABASE_URL });
 
-function loadJSON(file, fallback) {
-  const fp = path.join(DB_PATH, file);
-  try { return JSON.parse(fs.readFileSync(fp, 'utf8')); } catch { return fallback; }
-}
-function saveJSON(file, data) {
-  fs.writeFileSync(path.join(DB_PATH, file), JSON.stringify(data, null, 2));
-}
-
-// Data stores
-let picks = loadJSON('picks.json', []);
-let history = loadJSON('history.json', []);
-let scanLogs = loadJSON('scanlogs.json', []);
-let alpha = loadJSON('alpha.json', []);
-let alphaHistory = loadJSON('alpha-history.json', []);
-let fundamentals = loadJSON('fundamentals.json', []);
+// In-memory working copies. Every route and scanner reads and mutates these
+// exactly as before; the store only decides where they are read from at boot
+// and written to afterwards.
+let picks = [];
+let history = [];
+let scanLogs = [];
+let alpha = [];              // retired with Unusual Whales; kept so /api/health reads
+let fundamentals = [];
 // Sector rotation, keyed by asset class: { equity: {...}, crypto: {...} }.
-let sectors = loadJSON('sectors.json', {});
-let nextId = loadJSON('nextid.json', { pick: 1, hist: 1, alpha: 1 });
+let sectors = {};
+let nextId = { pick: 1, hist: 1, alpha: 1 };
+
+async function loadAll() {
+  await store.init();
+  await seedFromFiles(store, DB_PATH);
+  picks = await store.load('picks', []);
+  history = await store.load('history', []);
+  scanLogs = await store.load('scanlogs', []);
+  fundamentals = await store.load('fundamentals', []);
+  sectors = await store.load('sectors', {});
+  nextId = await store.load('nextid', { pick: 1, hist: 1, alpha: 1 });
+}
+
+// persist() is called from synchronous code all over the scanners, so it stays
+// synchronous in signature and schedules the write. Writes are coalesced: a
+// scan calls this repeatedly and one round trip per burst is plenty.
+let writeTimer = null;
+let writing = false;
+let dirty = false;
+
+async function flush() {
+  if (writing) { dirty = true; return; }
+  writing = true;
+  try {
+    await Promise.all([
+      store.save('picks', picks),
+      store.save('history', history),
+      store.save('scanlogs', scanLogs),
+      store.save('fundamentals', fundamentals),
+      store.save('sectors', sectors),
+      store.save('nextid', nextId),
+    ]);
+  } catch (err) {
+    // A failed write must not take the scan down with it — the in-memory copy
+    // is still correct and the next persist() will try again.
+    console.error('[Store] Write failed:', err.message);
+  }
+  writing = false;
+  if (dirty) { dirty = false; flush(); }
+}
 
 function persist() {
-  saveJSON('picks.json', picks);
-  saveJSON('history.json', history);
-  saveJSON('scanlogs.json', scanLogs);
-  saveJSON('alpha.json', alpha);
-  saveJSON('alpha-history.json', alphaHistory);
-  saveJSON('fundamentals.json', fundamentals);
-  saveJSON('sectors.json', sectors);
-  saveJSON('nextid.json', nextId);
+  if (writeTimer) clearTimeout(writeTimer);
+  writeTimer = setTimeout(flush, 250);
 }
 
 // ── Middleware ──
@@ -102,30 +134,73 @@ app.get('/api/history', (req, res) => {
 });
 
 // GET /api/stats — Overall performance statistics
+//
+// Only rows written by the corrected bookkeeping are counted. Anything
+// closed by the old code was closed at its peak price, so its return could
+// not be negative; averaging those together with honest rows would produce a
+// number that looks like performance and isn't. They are reported separately
+// as `excluded_legacy` rather than silently dropped.
 app.get('/api/stats', (req, res) => {
-  const closed = history.filter((h) => h.status === 'closed');
-  const active = history.filter((h) => h.status === 'active');
+  const MEASURED = 2;
+  const measured = history.filter((h) => h.measurement_version >= MEASURED);
+  const legacy = history.filter((h) => !(h.measurement_version >= MEASURED));
+
+  const closed = measured.filter((h) => h.status === 'closed' && h.return_pct != null);
+  const active = measured.filter((h) => h.status === 'active');
+
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  const rets = closed.map((h) => h.return_pct);
+
+  // Every closed trade that has a SPY leg, so "did this beat holding the
+  // index" is answerable over exactly the windows the signals were open.
+  const benched = closed.filter((h) => h.excess_return_pct != null);
+  const excess = benched.map((h) => h.excess_return_pct);
+  const benchRets = benched.map((h) => h.bench_return_pct);
 
   const winners = closed.filter((h) => h.return_pct > 0).length;
-  const losers = closed.length - winners;
-  const avgReturn = closed.length > 0 ? closed.reduce((s, h) => s + h.return_pct, 0) / closed.length : 0;
-  const bestTrade = closed.length > 0 ? Math.max(...closed.map((h) => h.return_pct)) : 0;
-  const worstTrade = closed.length > 0 ? Math.min(...closed.map((h) => h.return_pct)) : 0;
-  const winReturns = closed.filter((h) => h.return_pct > 0);
-  const lossReturns = closed.filter((h) => h.return_pct <= 0);
-  const avgWin = winReturns.length > 0 ? winReturns.reduce((s, h) => s + h.return_pct, 0) / winReturns.length : 0;
-  const avgLoss = lossReturns.length > 0 ? lossReturns.reduce((s, h) => s + h.return_pct, 0) / lossReturns.length : 0;
-  const bestPeak = history.length > 0 ? Math.max(0, ...history.map((h) => h.peak_return_pct || 0)) : 0;
-  const winRate = closed.length > 0 ? parseFloat(((winners / closed.length) * 100).toFixed(1)) : 0;
+  const beatBench = benched.filter((h) => h.excess_return_pct > 0).length;
+  const stoppedOut = closed.filter((h) => h.exit_reason === 'stopped-out').length;
 
+  const pct = (n, d) => (d > 0 ? parseFloat(((n / d) * 100).toFixed(1)) : null);
   const avgScore = picks.length > 0 ? r2(picks.reduce((s, p) => s + p.composite_score, 0) / picks.length) : 0;
 
   res.json({
     current: { picks_count: picks.length, avg_score: avgScore },
     performance: {
-      total_trades: closed.length, winners, losers, win_rate: winRate,
-      avg_return: r2(avgReturn), best_trade: r2(bestTrade), worst_trade: r2(worstTrade),
-      avg_win: r2(avgWin), avg_loss: r2(avgLoss), best_peak: r2(bestPeak),
+      total_trades: closed.length,
+      winners,
+      losers: closed.length - winners,
+      // Null rather than 0 when nothing has closed yet: an empty record is
+      // not a 0% win rate, and showing one invites reading noise as a result.
+      win_rate: pct(winners, closed.length),
+      avg_return: closed.length ? r2(mean(rets)) : null,
+      best_trade: closed.length ? r2(Math.max(...rets)) : null,
+      worst_trade: closed.length ? r2(Math.min(...rets)) : null,
+      avg_win: r2(mean(rets.filter((r) => r > 0))),
+      avg_loss: r2(mean(rets.filter((r) => r <= 0))),
+      stopped_out: stoppedOut,
+    },
+    // The comparison that makes the numbers above mean something.
+    vs_benchmark: {
+      symbol: 'SPY',
+      trades_with_benchmark: benched.length,
+      spy_avg_return: benched.length ? r2(mean(benchRets)) : null,
+      avg_excess_return: benched.length ? r2(mean(excess)) : null,
+      beat_benchmark: beatBench,
+      beat_benchmark_rate: pct(beatBench, benched.length),
+    },
+    // Highest price reached while open. Useful for sizing a target; it is
+    // NOT a return anyone could have captured, so it is kept well away from
+    // the performance block.
+    peaks: {
+      avg_peak_return: measured.length ? r2(mean(measured.map((h) => h.peak_return_pct || 0))) : null,
+      best_peak: measured.length ? r2(Math.max(0, ...measured.map((h) => h.peak_return_pct || 0))) : null,
+    },
+    excluded_legacy: {
+      count: legacy.length,
+      reason: legacy.length
+        ? 'Closed at peak price by the pre-fix scanner; returns could not go negative, so these are not comparable.'
+        : null,
     },
     active_positions: active.length,
     recent_scans: scanLogs.slice(-10).reverse(),
@@ -142,6 +217,34 @@ app.get('/api/alpha', (req, res) => {
 // GET /api/fundamentals — Long-term fundamentals scores
 app.get('/api/fundamentals', (req, res) => {
   res.json({ timestamp: new Date().toISOString(), count: fundamentals.length, stocks: fundamentals });
+});
+
+// ═══════════════════════════════════════════════════
+// P&L record
+// ═══════════════════════════════════════════════════
+
+// GET /api/pnl — the permanent record of closed signals.
+//   ?from=YYYY-MM-DD   only count trades closed on or after this date
+app.get('/api/pnl', (req, res) => {
+  try {
+    res.json(buildPnL(history, { from: req.query.from }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/pnl.csv — the same ledger as a file, so the record can live
+// somewhere that isn't this server.
+app.get('/api/pnl.csv', (req, res) => {
+  try {
+    const csv = toCSV(buildPnL(history, { from: req.query.from }));
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="superpicks-pnl-${stamp}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ═══════════════════════════════════════════════════
@@ -463,20 +566,34 @@ function isMarketOpen() {
 }
 
 // ── Start server ──
-app.listen(PORT, () => {
-  console.log(`\n  Super Picks Trading Server`);
-  console.log(`  Dashboard:  http://localhost:${PORT}`);
-  console.log(`  Signals:    http://localhost:${PORT}/api/signals`);
-  console.log(`  Picks: ${picks.length} | History: ${history.length}\n`);
+//
+// The store is read before the first request, so nothing can serve an empty
+// history that is merely still loading and then quietly overwrite the real
+// one on the next persist().
+loadAll()
+  .then(() => {
+    console.log(`[Store] Loaded — picks ${picks.length}, history ${history.length}, `
+      + `sectors ${Object.keys(sectors).length}`);
+  })
+  .catch((err) => {
+    console.error('[Store] Load failed, starting empty:', err.message);
+  })
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`\n  Super Picks Trading Server`);
+      console.log(`  Dashboard:  http://localhost:${PORT}`);
+      console.log(`  Signals:    http://localhost:${PORT}/api/signals`);
+      console.log(`  Picks: ${picks.length} | History: ${history.length}\n`);
 
-  // Run first scan 5 seconds after startup
-  setTimeout(autoScan, 5000);
+      // Run first scan 5 seconds after startup
+      setTimeout(autoScan, 5000);
 
-  // Re-scan every 15 minutes
-  setInterval(autoScan, 15 * 60 * 1000);
+      // Re-scan every 15 minutes
+      setInterval(autoScan, 15 * 60 * 1000);
 
-  // Sector rotation runs on its own checkpoint clock — see sector-scanner.js.
-  // It stands aside while the TA scan is mid-flight so the two never hit
-  // Yahoo together.
-  startSectorSchedulers(() => ({ sectors }), persist, () => !scanning);
-});
+      // Sector rotation runs on its own checkpoint clock — see sector-scanner.js.
+      // It stands aside while the TA scan is mid-flight so the two never hit
+      // Yahoo together.
+      startSectorSchedulers(() => ({ sectors }), persist, () => !scanning);
+    });
+  });

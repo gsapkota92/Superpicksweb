@@ -749,6 +749,13 @@ async function analyzeStock(symbol) {
         stochK: currentK != null ? Math.round(currentK * 10) / 10 : null,
         stochD: currentD != null ? Math.round(currentD * 10) / 10 : null,
         atr: currentATR != null ? Math.round(currentATR * 100) / 100 : null,
+        // Lowest low of the last 10 sessions — the "recent swing low" a stop
+        // sits under. Kept here so the scanner can price an invalidation
+        // level without re-fetching the candles.
+        swingLow: (() => {
+          const recent = candles.slice(-10).map((c) => c.low).filter((v) => v != null);
+          return recent.length ? Math.round(Math.min(...recent) * 100) / 100 : null;
+        })(),
         bbUpper: currentBBUpper != null ? Math.round(currentBBUpper * 100) / 100 : null,
         bbLower: currentBBLower != null ? Math.round(currentBBLower * 100) / 100 : null,
         bbWidth: currentBBWidth != null ? Math.round(currentBBWidth * 10000) / 10000 : null,
